@@ -20,7 +20,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-    ChevronLeft, Edit, Calendar, Users, HeartPulse, MessageSquare,
+    ChevronLeft, Edit, Calendar as CalendarIcon, Users, HeartPulse, MessageSquare,
     Paperclip, ClipboardList, Receipt, BellPlus, Trash2, Download,
     History, Bell, CheckCircle2, Clock, Loader2, PlusCircle, Phone, FilePlus2, Route
 } from 'lucide-react';
@@ -29,7 +29,8 @@ import type { Patient, Doctor, Appointment, MedicalHistory, Communication, Patie
 import { doc, collection, query, where, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { DatePicker } from '@/components/DatePicker';
-import { format, formatDistanceToNow, isPast, isToday, isTomorrow, differenceInDays } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { format, formatDistanceToNow, isPast, isToday, isTomorrow, differenceInDays, addDays } from 'date-fns';
 import { safeDate, safeFormat } from '@/lib/safe-date';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -105,9 +106,27 @@ const AddFollowUpDialog = ({ open, onOpenChange, patient }: { open: boolean; onO
                     <DialogDescription>Set a follow-up reminder for <strong>{patient.name}</strong>. Admin will be notified on the follow-up date.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-2">
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                         <Label>Follow-up Date <span className="text-red-500">*</span></Label>
-                        <DatePicker date={date} onDateChange={setDate} />
+                        <div className="text-sm font-bold text-indigo-600 bg-indigo-50 px-3 py-2 rounded-xl">
+                            {date ? format(date, 'PPP') : 'No date selected'}
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
+                            <Button type="button" variant="outline" size="sm" className="rounded-lg text-xs h-7"
+                                onClick={() => setDate(new Date())}>Today</Button>
+                            <Button type="button" variant="outline" size="sm" className="rounded-lg text-xs h-7"
+                                onClick={() => setDate(addDays(new Date(), 1))}>Tomorrow</Button>
+                            <Button type="button" variant="outline" size="sm" className="rounded-lg text-xs h-7"
+                                onClick={() => setDate(addDays(new Date(), 7))}>+1 Week</Button>
+                            <Button type="button" variant="outline" size="sm" className="rounded-lg text-xs h-7"
+                                onClick={() => setDate(addDays(new Date(), 30))}>+1 Month</Button>
+                        </div>
+                        <Calendar
+                            mode="single"
+                            selected={date}
+                            onSelect={(d) => { if (d) setDate(d); }}
+                            className="rounded-xl border shadow-sm"
+                        />
                     </div>
                     <div className="space-y-1.5">
                         <Label>Reason / Purpose</Label>

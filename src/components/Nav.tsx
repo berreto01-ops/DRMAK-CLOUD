@@ -180,6 +180,10 @@ const clinicGroups = [
         ids: ["pharmacy.full", "healthRecords", "ePrescription"]
     },
     {
+        label: "Team & Growth",
+        ids: ["employeeReports", "trainings_hub"]
+    },
+    {
         label: "Intelligence & Reports",
         ids: ["reports.full"]
     },
@@ -298,7 +302,7 @@ const NavContent = () => {
     const filteredNavItems = React.useMemo(() => {
         if (isUserLoading) return [];
 
-        if (isMainAdmin) {
+        if (isMainAdmin && userProfile?.role === 'Admin') {
             // Main admin sees everything, but we filter out redundant role-specific dashboards
             // because they use the unified root dashboard with switcher.
             return allMenuItems.filter(item => item.id !== 'salesDashboard' && item.id !== 'designerWork');
@@ -394,7 +398,7 @@ const NavContent = () => {
         return (
             <div className="space-y-6">
                 {activeGroups.map((group) => {
-                    const groupItems = allMenuItems.filter(item => group.ids.includes(item.id));
+                    const groupItems = filteredNavItems.filter(item => group.ids.includes(item.id));
                     if (groupItems.length === 0) return null;
 
                     return (
