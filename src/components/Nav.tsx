@@ -54,7 +54,8 @@ import {
     Truck,
     Receipt,
     Printer,
-    Wallet
+    Wallet,
+    Palette
 } from 'lucide-react';
 import { useUser, useAuth } from '@/firebase';
 import { useViewMode } from '@/context/ViewModeContext';
@@ -88,10 +89,12 @@ const allMenuItems: MenuItem[] = [
     { id: 'designerWork', href: '/designer-dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'creativeBriefs', href: '/daily-tasks', label: 'Creative Briefs', icon: ListTodo },
     { id: 'designerPlanner', href: '/designer-planner', label: 'My Planner', icon: CalendarCheck },
+    { id: 'creativeRequestHistory', href: '/creative-request-history', label: 'Request Creative History', icon: Palette },
 
     { id: 'printPrescription', href: '/print-prescription', label: 'Print Prescription', icon: Printer },
     { id: 'appointments', href: '/appointments', label: 'Appointments', icon: Calendar },
     { id: 'followUpCalendar', href: '/appointments/follow-ups', label: 'Follow-up Calendar', icon: CalendarCheck },
+    { id: 'followUpHistory', href: '/appointments/follow-up-history', label: 'Follow-up History', icon: Activity },
     { id: 'patients', href: '/patients', label: 'Patients', icon: Users },
     { id: 'doctors', href: '/doctors', label: 'Doctors', icon: Stethoscope },
     { id: 'procedures', href: '/procedures', label: 'Procedures', icon: Activity },
@@ -170,7 +173,7 @@ const clinicGroups = [
     },
     {
         label: "Core Operations",
-        ids: ["printPrescription", "appointments", "followUpCalendar", "patients", "doctors", "procedures", "inventory", "supplier", "billing", "todaySummary", "dailyExpenses"]
+        ids: ["printPrescription", "appointments", "followUpCalendar", "followUpHistory", "patients", "doctors", "procedures", "inventory", "supplier", "billing", "todaySummary", "dailyExpenses"]
     },
     {
         label: "Medical & Pharmacy",
@@ -212,15 +215,15 @@ const organizationGroups = [
     },
     {
         label: "Team Management",
-        ids: ["employeeReports", "taskManagement", "admin_trainings", "designerWork", "creativeBriefs"]
+        ids: ["employeeReports", "taskManagement", "admin_trainings", "designerWork", "creativeBriefs", "creativeRequestHistory"]
     },
     {
         label: "Sales & Leads",
-        ids: ["salesDashboard", "leads", "leadAssignment", "dailyReporting"]
+        ids: ["salesDashboard", "leads", "leadAssignment", "followUpHistory", "dailyReporting"]
     },
     {
         label: "Social & Growth",
-        ids: ["dailyPosting", "dailyTasks", "dailyProgress", "trainings_hub", "socialReporting", "contentPlanner", "socialInbox", "reachTracker"]
+        ids: ["dailyPosting", "dailyTasks", "dailyProgress", "trainings_hub", "socialReporting", "contentPlanner", "socialInbox", "reachTracker", "creativeRequestHistory"]
     },
     {
         label: "SkinSmith AI",
@@ -306,18 +309,18 @@ const NavContent = () => {
         if (userProfile?.role === 'Admin') {
             baseAccessIds = allMenuItems.filter(item => item.id !== 'userManagement' && item.id !== 'featureControl').map(i => i.id);
         } else if (userProfile?.role === 'Social Media Manager') {
-            baseAccessIds = ['dashboard', 'socialReporting', 'contentPlanner', 'socialInbox', 'reachTracker', 'leadAssignment', 'dailyPosting', 'aiTools'];
+            baseAccessIds = ['dashboard', 'socialReporting', 'contentPlanner', 'socialInbox', 'reachTracker', 'leadAssignment', 'dailyPosting', 'aiTools', 'creativeRequestHistory'];
         } else if (userProfile?.role === 'Designer') {
             // Designers and SMM now share the exact same unified platform planner.
             // Removed the private 'My Planner' to prevent data discrepancy.
-            baseAccessIds = ['designerWork', 'creativeBriefs', 'contentPlanner', 'socialInbox', 'dailyReporting', 'aiTools'];
+            baseAccessIds = ['designerWork', 'creativeBriefs', 'contentPlanner', 'socialInbox', 'dailyReporting', 'aiTools', 'creativeRequestHistory'];
         } else if (userProfile?.role === 'Sales') {
             baseAccessIds = ['salesDashboard', 'leads', 'leadAssignment', 'dailyReporting', 'dailyPosting', 'dailyTasks', 'dailyProgress', 'trainings_hub', 'aiTools'];
         } else if (userProfile?.role === 'Operations Manager') {
             // Full Operational Visibility
             baseAccessIds = [
                 'dashboard', 
-                'printPrescription', 'appointments', 'followUpCalendar', 'patients', 'doctors', 'procedures', 'inventory', 'supplier', 'billing', 'todaySummary', 'dailyExpenses',
+                'printPrescription', 'appointments', 'followUpCalendar', 'followUpHistory', 'patients', 'doctors', 'procedures', 'inventory', 'supplier', 'billing', 'todaySummary', 'dailyExpenses',
                 'leads', 'leadAssignment', 'employeeReports', 'socialReporting', 'aiTools'
             ];
         } else if (userProfile?.role === 'Doctor') {
@@ -360,6 +363,18 @@ const NavContent = () => {
         return [];
     }, [userProfile, isUserLoading, isMainAdmin]);
 
+    const activeHref = React.useMemo(() => {
+        let bestMatch = '';
+        allMenuItems.forEach(item => {
+            if (pathname === item.href || pathname.startsWith(item.href + '/')) {
+                if (item.href.length > bestMatch.length) {
+                    bestMatch = item.href;
+                }
+            }
+        });
+        return bestMatch;
+    }, [pathname]);
+
     if (isUserLoading) {
         return (
             <div className="p-2 space-y-2">
@@ -367,7 +382,6 @@ const NavContent = () => {
             </div>
         )
     }
-
     // Hide sidebar completely for Main Admin if no viewMode is selected
     if (isMainAdmin && viewMode === 'none') {
         return null;
@@ -391,7 +405,7 @@ const NavContent = () => {
                             <SidebarGroupContent>
                                 <SidebarMenu className="gap-1">
                                     {groupItems.map((item) => {
-                                        const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                                        const isActive = item.href === activeHref;
                                         return item.isMenu ? (
                                             <DropdownMenu key={item.id}>
                                                 <SidebarMenuItem>
@@ -468,7 +482,7 @@ const NavContent = () => {
 
     if (userProfile?.role === 'Social Media Manager') {
         const overviewIds = ['dashboard'];
-        const toolIds = ['contentPlanner', 'dailyPosting', 'socialInbox'];
+        const toolIds = ['contentPlanner', 'dailyPosting', 'socialInbox', 'creativeRequestHistory'];
         const insightIds = ['socialReporting', 'reachTracker', 'leadAssignment'];
 
         const overviewItems = allMenuItems.filter(item => overviewIds.includes(item.id));
@@ -567,7 +581,7 @@ const NavContent = () => {
     return (
         <SidebarMenu className="gap-1 px-1">
             {mainMenuItems.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                const isActive = item.href === activeHref;
                 return item.isMenu ? (
                     <DropdownMenu key={item.id}>
                         <SidebarMenuItem>

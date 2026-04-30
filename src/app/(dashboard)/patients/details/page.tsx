@@ -56,6 +56,10 @@ interface FollowUp {
     notes: string;
     status: 'Pending' | 'Completed' | 'Cancelled';
     createdAt: string;
+    callOutcome?: string;
+    calledBy?: string;
+    calledByRole?: string;
+    remarks?: string;
 }
 
 // ─── Follow-up Dialog ─────────────────────────────────────────────────────────
@@ -119,6 +123,88 @@ const AddFollowUpDialog = ({ open, onOpenChange, patient }: { open: boolean; onO
                     <Button onClick={handleSave} disabled={saving}>
                         {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Schedule Follow-up
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
+// ─── Complete Follow-up Dialog ────────────────────────────────────────────────
+
+const CompleteFollowUpDialog = ({ open, onOpenChange, followUp, onComplete, currentUser }: { 
+    open: boolean; 
+    onOpenChange: (v: boolean) => void; 
+    followUp: FollowUp | null;
+    onComplete: (id: string, outcome: string, caller: string, remarks: string) => Promise<void>;
+    currentUser: any;
+}) => {
+    const [outcome, setOutcome] = React.useState('');
+    const [callerName, setCallerName] = React.useState('');
+    const [remarks, setRemarks] = React.useState('');
+    const [saving, setSaving] = React.useState(false);
+
+    React.useEffect(() => {
+        if (open) {
+            setOutcome('');
+            setRemarks('');
+            setCallerName(currentUser?.name || '');
+        }
+    }, [open, currentUser]);
+
+    if (!followUp) return null;
+
+    const handleSave = async () => {
+        setSaving(true);
+        await onComplete(followUp.id, outcome, callerName, remarks);
+        setSaving(false);
+        onOpenChange(false);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-green-600" /> Complete Follow-up</DialogTitle>
+                    <DialogDescription>Details of the follow-up call for <strong>{followUp.patientName}</strong>.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label>Who Called?</Label>
+                            <Input value={callerName} onChange={e => setCallerName(e.target.value)} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>Role</Label>
+                            <Input value={currentUser?.role || ''} disabled className="bg-muted" />
+                        </div>
+                    </div>
+                    
+                    <div className="space-y-1.5">
+                        <Label>Call Outcome / Patient's Reply <span className="text-red-500">*</span></Label>
+                        <Textarea 
+                            placeholder="Enter what the patient said..." 
+                            value={outcome} 
+                            onChange={e => setOutcome(e.target.value)} 
+                            rows={3} 
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label>Internal Remarks (Optional)</Label>
+                        <Textarea 
+                            placeholder="Add any internal notes about this call..." 
+                            value={remarks} 
+                            onChange={e => setRemarks(e.target.value)} 
+                            rows={2} 
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button onClick={handleSave} disabled={saving || !outcome.trim() || !callerName.trim()} className="bg-green-600 hover:bg-green-700 text-white">
+                        {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Mark as Completed
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -205,6 +291,8 @@ export default function PatientDetailsPage() {
 
     const [isAppointmentDialogOpen, setIsAppointmentDialogOpen] = React.useState(false);
     const [isFollowUpDialogOpen, setIsFollowUpDialogOpen] = React.useState(false);
+    const [isCompleteFollowUpOpen, setIsCompleteFollowUpOpen] = React.useState(false);
+    const [selectedFollowUp, setSelectedFollowUp] = React.useState<FollowUp | null>(null);
     const [newComment, setNewComment] = React.useState('');
     const [isAddingComment, setIsAddingComment] = React.useState(false);
 
@@ -279,10 +367,17 @@ export default function PatientDetailsPage() {
         }
     };
 
-    const handleMarkFollowUpDone = async (id: string) => {
-        if (!firestore) return;
-        await updateDocumentNonBlocking(doc(firestore, 'followUps', id), { status: 'Completed' });
-        toast({ title: 'Follow-up Completed' });
+    const handleMarkFollowUpDone = async (id: string, outcome: string, callerName: string, remarks: string) => {
+        if (!firestore || !user) return;
+        await updateDocumentNonBlocking(doc(firestore, 'followUps', id), { 
+            status: 'Completed',
+            callOutcome: outcome,
+            calledBy: callerName,
+            calledByRole: user.role,
+            remarks: remarks,
+            completedAt: new Date().toISOString(),
+        });
+        toast({ title: 'Follow-up Completed', description: 'The call outcome has been saved.' });
     };
 
     const handleDeleteFollowUp = async (id: string) => {
@@ -471,13 +566,36 @@ export default function PatientDetailsPage() {
                                                         {fu.status === 'Pending' ? <FollowUpBadge dateStr={fu.followUpDate} /> : <Badge variant="outline" className="text-green-600 border-green-300">Completed</Badge>}
                                                         {fu.reason && <span className="text-sm font-medium">{fu.reason}</span>}
                                                     </div>
-                                                    {fu.notes && <p className="text-xs text-muted-foreground mt-1">{fu.notes}</p>}
+                                                    {fu.notes && <p className="text-xs text-muted-foreground mt-1"><span className="font-semibold">Notes:</span> {fu.notes}</p>}
+                                                    {fu.callOutcome && (
+                                                        <div className="mt-2 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-100 dark:border-green-900 shadow-sm">
+                                                            <div className="flex items-center justify-between mb-1.5">
+                                                                <p className="text-[10px] font-bold text-green-700 dark:text-green-400 uppercase tracking-wider">Call Outcome</p>
+                                                                {fu.calledBy && (
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <span className="text-[10px] font-medium text-green-800 dark:text-green-300">{fu.calledBy}</span>
+                                                                        <Badge variant="outline" className="text-[9px] h-3.5 px-1 bg-green-100/50 border-green-200 text-green-700">{fu.calledByRole}</Badge>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-sm italic text-green-900 dark:text-green-200 leading-relaxed">"{fu.callOutcome}"</p>
+                                                            {fu.remarks && (
+                                                                <div className="mt-2 pt-2 border-t border-green-200/50">
+                                                                    <p className="text-[10px] font-bold text-green-600/70 uppercase mb-0.5">Remarks</p>
+                                                                    <p className="text-xs text-green-800/80">{fu.remarks}</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                     <p className="text-xs text-muted-foreground mt-1">Scheduled: {safeFormat(fu.createdAt, 'dd MMM yyyy')}</p>
                                                 </div>
                                             </div>
                                             <div className="flex gap-1 flex-shrink-0">
-                                                {fu.status === 'Pending' && (
-                                                    <Button size="sm" variant="outline" className="h-8 text-green-600 border-green-300 hover:bg-green-50" onClick={() => handleMarkFollowUpDone(fu.id)}>
+                                                {fu.status === 'Pending' && (user?.role === 'Operations Manager' || user?.role === 'Admin') && (
+                                                    <Button size="sm" variant="outline" className="h-8 text-green-600 border-green-300 hover:bg-green-50" onClick={() => {
+                                                        setSelectedFollowUp(fu);
+                                                        setIsCompleteFollowUpOpen(true);
+                                                    }}>
                                                         <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Done
                                                     </Button>
                                                 )}
@@ -640,6 +758,13 @@ export default function PatientDetailsPage() {
 
             <AddAppointmentDialog open={isAppointmentDialogOpen} onOpenChange={setIsAppointmentDialogOpen} patient={patient} />
             <AddFollowUpDialog open={isFollowUpDialogOpen} onOpenChange={setIsFollowUpDialogOpen} patient={patient} />
+            <CompleteFollowUpDialog 
+                open={isCompleteFollowUpOpen} 
+                onOpenChange={setIsCompleteFollowUpOpen} 
+                followUp={selectedFollowUp} 
+                onComplete={handleMarkFollowUpDone} 
+                currentUser={user}
+            />
         </>
     );
 }

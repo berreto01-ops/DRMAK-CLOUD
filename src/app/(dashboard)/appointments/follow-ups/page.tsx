@@ -40,7 +40,8 @@ import {
     useMemoFirebase,
     addDocumentNonBlocking,
     updateDocumentNonBlocking,
-    deleteDocumentNonBlocking
+    deleteDocumentNonBlocking,
+    useUser
 } from '@/firebase';
 import type { FollowUp, Patient } from '@/lib/types';
 import { collection, doc, query, orderBy, where, addDoc } from 'firebase/firestore';
@@ -279,6 +280,88 @@ const AddFollowUpDialog = ({ open, onOpenChange, onFollowUpAdded }: { open: bool
     );
 };
 
+// ─── Complete Follow-up Dialog ────────────────────────────────────────────────
+
+const CompleteFollowUpDialog = ({ open, onOpenChange, followUp, onComplete, currentUser }: { 
+    open: boolean; 
+    onOpenChange: (v: boolean) => void; 
+    followUp: FollowUp | null;
+    onComplete: (id: string, outcome: string, caller: string, remarks: string) => Promise<void>;
+    currentUser: any;
+}) => {
+    const [outcome, setOutcome] = React.useState('');
+    const [callerName, setCallerName] = React.useState('');
+    const [remarks, setRemarks] = React.useState('');
+    const [saving, setSaving] = React.useState(false);
+
+    React.useEffect(() => {
+        if (open) {
+            setOutcome('');
+            setRemarks('');
+            setCallerName(currentUser?.name || '');
+        }
+    }, [open, currentUser]);
+
+    if (!followUp) return null;
+
+    const handleSave = async () => {
+        setSaving(true);
+        await onComplete(followUp.id, outcome, callerName, remarks);
+        setSaving(false);
+        onOpenChange(false);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-green-600" /> Complete Follow-up</DialogTitle>
+                    <DialogDescription>Details of the follow-up call for <strong>{followUp.patientName}</strong>.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label>Who Called?</Label>
+                            <Input value={callerName} onChange={e => setCallerName(e.target.value)} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>Role</Label>
+                            <Input value={currentUser?.role || ''} disabled className="bg-muted" />
+                        </div>
+                    </div>
+                    
+                    <div className="space-y-1.5">
+                        <Label>Call Outcome / Patient's Reply <span className="text-red-500">*</span></Label>
+                        <Textarea 
+                            placeholder="Enter what the patient said..." 
+                            value={outcome} 
+                            onChange={e => setOutcome(e.target.value)} 
+                            rows={3} 
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label>Internal Remarks (Optional)</Label>
+                        <Textarea 
+                            placeholder="Add any internal notes about this call..." 
+                            value={remarks} 
+                            onChange={e => setRemarks(e.target.value)} 
+                            rows={2} 
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button onClick={handleSave} disabled={saving || !outcome.trim() || !callerName.trim()} className="bg-green-600 hover:bg-green-700 text-white">
+                        {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Mark as Completed
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
 // ─── Follow-up Calendar View ────────────────────────────────────────────────
 
 const FollowUpCalendarView = ({ followUps, week, onSlotClick }: { followUps: FollowUp[], week: Date[], onSlotClick: (date: Date) => void }) => {
@@ -345,9 +428,12 @@ export default function FollowUpCalendarPage() {
     const { toast } = useToast();
     const { searchTerm } = useSearch();
     const firestore = useFirestore();
+    const { user } = useUser();
 
     const [currentDate, setCurrentDate] = React.useState<Date>(new Date());
     const [isAdding, setIsAdding] = React.useState(false);
+    const [isCompleting, setIsCompleting] = React.useState(false);
+    const [selectedFollowUp, setSelectedFollowUp] = React.useState<FollowUp | null>(null);
     const [selectedSlot, setSelectedSlot] = React.useState<Date | undefined>();
     const [viewMode, setViewMode] = React.useState<'week' | 'month'>('week');
 
@@ -389,10 +475,23 @@ export default function FollowUpCalendarPage() {
         });
     }, [filteredFollowUps, week]);
 
-    const handleUpdateStatus = async (fuId: string, status: FollowUp['status']) => {
+    const handleUpdateStatus = async (fuId: string, status: FollowUp['status'], outcome?: string, caller?: string, remarks?: string) => {
         if (!firestore) return;
-        await updateDocumentNonBlocking(doc(firestore, 'followUps', fuId), { status });
-        toast({ title: 'Status Updated', description: `Follow-up is now ${status}.` });
+        const updateData: any = { status };
+        if (outcome) {
+            updateData.callOutcome = outcome;
+            updateData.remarks = remarks || '';
+            updateData.calledBy = caller || (user?.name || '');
+            if (user) {
+                updateData.calledByRole = user.role;
+            }
+        }
+        if (status === 'Completed') {
+            updateData.completedAt = new Date().toISOString();
+        }
+        
+        await updateDocumentNonBlocking(doc(firestore, 'followUps', fuId), updateData);
+        toast({ title: 'Status Updated', description: outcome ? 'The call outcome has been saved.' : `Follow-up is now ${status}.` });
         forceRerender();
     };
 
@@ -486,9 +585,14 @@ export default function FollowUpCalendarPage() {
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                <DropdownMenuItem onClick={() => handleUpdateStatus(fu.id, 'Completed')}>
-                                                    <CheckCircle className="mr-2 h-4 w-4 text-green-600" /> Mark Completed
-                                                </DropdownMenuItem>
+                                                {(user?.role === 'Operations Manager' || user?.role === 'Admin') && (
+                                                    <DropdownMenuItem onClick={() => {
+                                                        setSelectedFollowUp(fu);
+                                                        setIsCompleting(true);
+                                                    }}>
+                                                        <CheckCircle className="mr-2 h-4 w-4 text-green-600" /> Mark Completed
+                                                    </DropdownMenuItem>
+                                                )}
                                                 <DropdownMenuItem onClick={() => handleUpdateStatus(fu.id, 'Cancelled')}>
                                                     <XCircle className="mr-2 h-4 w-4 text-red-600" /> Cancel
                                                 </DropdownMenuItem>
@@ -502,6 +606,17 @@ export default function FollowUpCalendarPage() {
                                         </DropdownMenu>
                                     </div>
                                     <p className="text-xs italic bg-muted/50 p-2 rounded">{fu.reason || 'Regular Check-up'}</p>
+                                    {fu.callOutcome && (
+                                        <div className="p-2.5 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-100 dark:border-green-900">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <p className="text-[9px] font-bold text-green-700 dark:text-green-400 uppercase">Call Outcome</p>
+                                                {fu.calledBy && (
+                                                    <span className="text-[9px] text-green-600 font-medium">{fu.calledBy}</span>
+                                                )}
+                                            </div>
+                                            <p className="text-xs italic text-green-800 dark:text-green-300">"{fu.callOutcome}"</p>
+                                        </div>
+                                    )}
                                     <div className="flex justify-between items-center">
                                         <Badge
                                             variant={fu.status === 'Completed' ? 'outline' : 'secondary'}
@@ -524,6 +639,16 @@ export default function FollowUpCalendarPage() {
                 open={isAdding}
                 onOpenChange={setIsAdding}
                 onFollowUpAdded={forceRerender}
+            />
+
+            <CompleteFollowUpDialog 
+                open={isCompleting}
+                onOpenChange={setIsCompleting}
+                followUp={selectedFollowUp}
+                onComplete={async (id, outcome, caller, remarks) => {
+                    await handleUpdateStatus(id, 'Completed', outcome, caller, remarks);
+                }}
+                currentUser={user}
             />
         </div>
     );

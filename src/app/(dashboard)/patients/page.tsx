@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { MoreHorizontal, PlusCircle, Search, Loader2, Upload, Bell, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -28,7 +29,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from '@/firebase';
 import type { Patient } from '@/lib/types';
 import { collection, doc, setDoc, query, where, orderBy } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
@@ -153,6 +154,88 @@ const PatientFormDialog = ({ open, onOpenChange, patient }: { open: boolean, onO
   )
 }
 
+// ─── Complete Follow-up Dialog ────────────────────────────────────────────────
+
+const CompleteFollowUpDialog = ({ open, onOpenChange, followUp, onComplete, currentUser }: { 
+  open: boolean; 
+  onOpenChange: (v: boolean) => void; 
+  followUp: any;
+  onComplete: (id: string, outcome: string, caller: string, remarks: string) => Promise<void>;
+  currentUser: any;
+}) => {
+  const [outcome, setOutcome] = React.useState('');
+  const [callerName, setCallerName] = React.useState('');
+  const [remarks, setRemarks] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+
+  React.useEffect(() => {
+      if (open) {
+          setOutcome('');
+          setRemarks('');
+          setCallerName(currentUser?.name || '');
+      }
+  }, [open, currentUser]);
+
+  if (!followUp) return null;
+
+  const handleSave = async () => {
+      setSaving(true);
+      await onComplete(followUp.id, outcome, callerName, remarks);
+      setSaving(false);
+      onOpenChange(false);
+  };
+
+  return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+          <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-green-600" /> Complete Follow-up</DialogTitle>
+                  <DialogDescription>Details of the follow-up call for <strong>{followUp.patientName}</strong>.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                  <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                          <Label>Who Called?</Label>
+                          <Input value={callerName} onChange={e => setCallerName(e.target.value)} />
+                      </div>
+                      <div className="space-y-1.5">
+                          <Label>Role</Label>
+                          <Input value={currentUser?.role || ''} disabled className="bg-muted" />
+                      </div>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                      <Label>Call Outcome / Patient's Reply <span className="text-red-500">*</span></Label>
+                      <Textarea 
+                          placeholder="Enter what the patient said..." 
+                          value={outcome} 
+                          onChange={e => setOutcome(e.target.value)} 
+                          rows={3} 
+                      />
+                  </div>
+
+                  <div className="space-y-1.5">
+                      <Label>Internal Remarks (Optional)</Label>
+                      <Textarea 
+                          placeholder="Add any internal notes about this call..." 
+                          value={remarks} 
+                          onChange={e => setRemarks(e.target.value)} 
+                          rows={2} 
+                      />
+                  </div>
+              </div>
+              <DialogFooter>
+                  <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                  <Button onClick={handleSave} disabled={saving || !outcome.trim() || !callerName.trim()} className="bg-green-600 hover:bg-green-700 text-white">
+                      {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Mark as Completed
+                  </Button>
+              </DialogFooter>
+          </DialogContent>
+      </Dialog>
+  );
+};
+
 export default function PatientsPage() {
   return (
     <React.Suspense fallback={
@@ -171,6 +254,7 @@ function PatientsContent() {
   const { toast } = useToast();
   const { searchTerm } = useSearch();
   const firestore = useFirestore();
+  const { user } = useUser();
   const patientsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'patients') : null, [firestore]);
   const { data: patients, isLoading } = useCollection<Patient>(patientsQuery);
 
@@ -197,8 +281,23 @@ function PatientsContent() {
 
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [isImportOpen, setIsImportOpen] = React.useState(false);
+  const [isCompleting, setIsCompleting] = React.useState(false);
+  const [selectedFollowUp, setSelectedFollowUp] = React.useState<any>(null);
   const [selectedPatient, setSelectedPatient] = React.useState<Patient | undefined>(undefined);
   const [patientToDelete, setPatientToDelete] = React.useState<Patient | null>(null);
+
+  const handleMarkFollowUpDone = async (id: string, outcome: string, caller: string, remarks: string) => {
+    if (!firestore || !user) return;
+    await updateDocumentNonBlocking(doc(firestore, 'followUps', id), { 
+      status: 'Completed',
+      callOutcome: outcome,
+      calledBy: caller || user.name,
+      calledByRole: user.role,
+      remarks: remarks || '',
+      completedAt: new Date().toISOString(),
+    });
+    toast({ title: 'Follow-up Completed', description: 'The call outcome has been saved.' });
+  };
 
   const handleOpenChange = (open: boolean) => {
     setIsFormOpen(open);
@@ -281,10 +380,9 @@ function PatientsContent() {
               return (
                 <div
                   key={fu.id}
-                  className="flex items-center justify-between bg-white dark:bg-orange-950/40 rounded-md px-3 py-2 cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-colors"
-                  onClick={() => router.push(`/patients/details?id=${fu.patientId}`)}
+                  className="flex items-center justify-between bg-white dark:bg-orange-950/40 rounded-md px-3 py-2 cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-colors group"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-1" onClick={() => router.push(`/patients/details?id=${fu.patientId}`)}>
                     {isOverdue
                       ? <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />
                       : <Bell className="h-4 w-4 text-orange-500 flex-shrink-0" />}
@@ -293,10 +391,25 @@ function PatientsContent() {
                       {fu.reason && <span className="text-xs text-muted-foreground ml-2">· {fu.reason}</span>}
                     </div>
                   </div>
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${isOverdue ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
-                    }`}>
-                    {isOverdue ? 'Overdue' : 'Today'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${isOverdue ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
+                      }`}>
+                      {isOverdue ? 'Overdue' : 'Today'}
+                    </span>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="h-7 text-[10px] px-2 border-green-200 text-green-700 hover:bg-green-50 shadow-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedFollowUp(fu);
+                        setIsCompleting(true);
+                      }}
+                    >
+                      <CheckCircle2 className="h-3 w-3 mr-1" /> Mark Done
+                    </Button>
+                    <span className="text-[8px] text-muted-foreground opacity-50">[{user?.role}]</span>
+                  </div>
                 </div>
               );
             })}
@@ -475,6 +588,14 @@ function PatientsContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <CompleteFollowUpDialog 
+        open={isCompleting}
+        onOpenChange={setIsCompleting}
+        followUp={selectedFollowUp}
+        onComplete={handleMarkFollowUpDone}
+        currentUser={user}
+      />
     </>
   );
 }

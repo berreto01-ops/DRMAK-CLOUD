@@ -427,6 +427,10 @@ export type FollowUp = {
   notes?: string;
   status: 'Pending' | 'Completed' | 'Cancelled';
   createdAt: string; // ISO string
+  callOutcome?: string;
+  calledBy?: string;
+  calledByRole?: string;
+  remarks?: string;
 }
 
 export type SupplierType = 'Vendor' | 'Distributor';
