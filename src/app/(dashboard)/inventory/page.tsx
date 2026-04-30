@@ -135,26 +135,6 @@ export default function InventoryPage() {
                         supplier: foundSup.name, supplierId: foundSup.id, active: true, category: foundSup.category || 'General'
                     });
                     syncCount++;
-                } else if (!pi && !foundSp && historicalQty > 0) {
-                    // Item ONLY exists in Logs - Recover it!
-                    const recoveringSup = suppliers[0]; // Fallback to first supplier
-                    if (recoveringSup) {
-                        const newId = `recovered-${Date.now()}-${Math.floor(Math.random()*1000)}`;
-                        if (!supplierUpdates[recoveringSup.id]) supplierUpdates[recoveringSup.id] = [...(recoveringSup.products || [])];
-                        
-                        const recoveredProduct = { 
-                            id: newId, name: nameKey.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '), 
-                            sellingPrice: finalSelling || 0, 
-                            quantity: finalQty, rack: '', minThreshold: 0 
-                        };
-                        
-                        supplierUpdates[recoveringSup.id].push(recoveredProduct);
-                        pharmacyCreates.push({
-                            ...recoveredProduct, productName: recoveredProduct.name,
-                            supplier: recoveringSup.name, supplierId: recoveringSup.id, active: true, category: 'General'
-                        });
-                        syncCount++;
-                    }
                 }
             });
 

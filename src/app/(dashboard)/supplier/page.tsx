@@ -243,6 +243,15 @@ export default function SupplierPage() {
                 }
             }
 
+            // Cleanup deleted products from pharmacyItems
+            if (editingSupplier && editingSupplier.products) {
+                const newProductIds = new Set(formData.products?.map(p => p.id) || []);
+                const removedProducts = editingSupplier.products.filter(p => !newProductIds.has(p.id));
+                for (const p of removedProducts) {
+                    await deleteDocumentNonBlocking(doc(firestore, 'pharmacyItems', p.id));
+                }
+            }
+
             setDialogOpen(false);
         } finally {
             setIsSaving(false);
