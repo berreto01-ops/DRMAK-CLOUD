@@ -484,10 +484,10 @@ const NavContent = () => {
     const moreMenuItems = filteredNavItems.filter(item => item.isMore);
     const mainMenuItems = filteredNavItems.filter(item => !item.isMore);
 
-    if (userProfile?.role === 'Social Media Manager') {
-        const overviewIds = ['dashboard'];
-        const toolIds = ['contentPlanner', 'dailyPosting', 'socialInbox', 'creativeRequestHistory'];
-        const insightIds = ['socialReporting', 'reachTracker', 'leadAssignment'];
+    if (userProfile?.role === 'Social Media Manager' || userProfile?.role === 'Designer') {
+        const overviewIds = ['dashboard', 'designerWork'];
+        const toolIds = ['contentPlanner', 'dailyPosting', 'socialInbox', 'creativeRequestHistory', 'creativeBriefs'];
+        const insightIds = ['socialReporting', 'reachTracker', 'leadAssignment', 'dailyReporting'];
 
         const overviewItems = allMenuItems.filter(item => overviewIds.includes(item.id));
         const toolItems = allMenuItems.filter(item => toolIds.includes(item.id));

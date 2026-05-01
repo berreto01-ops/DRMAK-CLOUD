@@ -105,9 +105,8 @@ export default function DesignerDashboardPage() {
         if (!firestore) return null;
         return query(
             collection(firestore, 'designRequests'),
-            where('status', 'in', ['Pending', 'In Progress', 'Submitted']),
             orderBy('createdAt', 'desc'),
-            limit(10)
+            limit(30)
         );
     }, [firestore]);
 
@@ -128,7 +127,11 @@ export default function DesignerDashboardPage() {
 
     const { data: recentWork, isLoading: workLoading } = useCollection<DesignerWork>(workQuery);
     const { data: adminTasks, isLoading: tasksLoading } = useCollection<AdminTaskTemplate>(tasksQuery);
-    const { data: inboundRequests, isLoading: requestsLoading } = useCollection<DesignRequest>(inboundRequestsQuery);
+    const { data: rawInboundRequests, isLoading: requestsLoading } = useCollection<DesignRequest>(inboundRequestsQuery);
+    const inboundRequests = React.useMemo(() => {
+        if (!rawInboundRequests) return [];
+        return rawInboundRequests.filter(req => ['Pending', 'In Progress', 'Submitted'].includes(req.status)).slice(0, 10);
+    }, [rawInboundRequests]);
     const { data: recentReports } = useCollection<DailyReport>(reportsQuery);
     const { data: dailyTasks } = useCollection<DailyTask>(dailyTasksQuery);
 
