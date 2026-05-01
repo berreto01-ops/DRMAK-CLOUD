@@ -100,9 +100,12 @@ export default function Header() {
   const { data: scheduledPosts } = useCollection<any>(scheduledRef);
   const { data: designRequests } = useCollection<any>(designRequestsRef);
 
+  const userId = user?.id;
+  const userRole = user?.role;
+
   const alerts = React.useMemo(() => {
-    const isSocialStaff = user?.role === 'Social Media Manager' || user?.role === 'Designer';
-    
+    const isSocialStaff = userRole === 'Social Media Manager' || userRole === 'Designer';
+
     // 1. Social Staff Alerts (Tasks / Calendar)
     if (isSocialStaff) {
       const socialAlerts: any[] = [];
@@ -110,7 +113,7 @@ export default function Header() {
 
       // Add "Post Due Today" alerts
       scheduledPosts?.forEach(post => {
-        const postDate = post.scheduledAt?.split('T')[0];
+        const postDate = typeof post.scheduledAt === 'string' ? post.scheduledAt.split('T')[0] : '';
         if (postDate === todayString && post.status !== 'Published') {
           socialAlerts.push({
             type: 'CALENDAR',
@@ -123,9 +126,9 @@ export default function Header() {
       });
 
       // Add "Design Ready" alerts for SMM
-      if (user?.role === 'Social Media Manager') {
+      if (userRole === 'Social Media Manager' && userId) {
         designRequests?.forEach(req => {
-          if (req.requesterId === user.id && req.status === 'Submitted') {
+          if (req.requesterId === userId && req.status === 'Submitted') {
             socialAlerts.push({
               type: 'DESIGN',
               title: 'Design Submitted',
@@ -138,9 +141,9 @@ export default function Header() {
       }
 
       // Add "New Assignment" alerts for Designer
-      if (user?.role === 'Designer') {
+      if (userRole === 'Designer' && userId) {
         designRequests?.forEach(req => {
-          if (req.assignedTo === user.id && req.status === 'Pending') {
+          if (req.assignedTo === userId && req.status === 'Pending') {
             socialAlerts.push({
               type: 'TASK',
               title: 'New Design Task',
@@ -158,7 +161,7 @@ export default function Header() {
     // 2. Default Operations Alerts (Low Stock)
     if (!suppliers) return [];
     const lowStockItems: any[] = [];
-    
+
     suppliers.forEach(supplier => {
       supplier.products?.forEach(product => {
         if (product.quantity <= (product.minThreshold || 0) && product.minThreshold > 0) {
@@ -173,20 +176,23 @@ export default function Header() {
       });
     });
     return lowStockItems;
-  }, [suppliers, scheduledPosts, designRequests, user]);
+  }, [suppliers, scheduledPosts, designRequests, userId, userRole]);
 
   const [readAlerts, setReadAlerts] = React.useState<string[]>([]);
 
   React.useEffect(() => {
-    const saved = localStorage.getItem(`read_alerts_${user?.id}`);
+    if (!userId) return;
+    const saved = localStorage.getItem(`read_alerts_${userId}`);
     if (saved) {
       try {
         setReadAlerts(JSON.parse(saved));
       } catch (e) {
         console.error("Failed to parse read alerts", e);
       }
+    } else {
+      setReadAlerts([]);
     }
-  }, [user?.id]);
+  }, [userId]);
 
   const unreadAlerts = React.useMemo(() => {
     return alerts.filter(alert => {
@@ -199,8 +205,10 @@ export default function Header() {
     const id = alert.type === 'STOCK' ? `STOCK-${alert.supplierName}-${alert.productName}` : alert.id;
     const newReadAlerts = [...readAlerts, id];
     setReadAlerts(newReadAlerts);
-    localStorage.setItem(`read_alerts_${user?.id}`, JSON.stringify(newReadAlerts));
-    
+    if (userId) {
+      localStorage.setItem(`read_alerts_${userId}`, JSON.stringify(newReadAlerts));
+    }
+
     const link = alert.type === 'STOCK' ? '/inventory' : alert.link;
     if (link) {
       router.push(link);
@@ -208,7 +216,7 @@ export default function Header() {
   };
 
   const displayName = user?.name || user?.email || 'User';
-  const displayInitial = displayName?.charAt(0).toUpperCase() || 'U';
+  const displayInitial = (displayName && displayName.length > 0 ? displayName.charAt(0).toUpperCase() : 'U');
 
   const handleLogout = () => {
     signOut(auth);

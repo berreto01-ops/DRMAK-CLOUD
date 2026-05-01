@@ -36,9 +36,9 @@ export default function ReachTrackerPage() {
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     const reachQuery = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
+        if (!firestore || !user?.id) return null;
         return query(collection(firestore, 'socialMetrics'), where('userId', '==', user.id), orderBy('date', 'desc'), limit(20));
-    }, [firestore, user]);
+    }, [firestore, user?.id]);
 
     const { data: reachMetrics } = useCollection<SocialReach>(reachQuery);
 

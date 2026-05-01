@@ -20,6 +20,8 @@ import { Eye } from 'lucide-react';
 export default function SalesDashboardPage() {
     const firestore = useFirestore();
     const { user, isUserLoading: userLoading } = useUser();
+    const userId = user?.id;
+    const userRole = user?.role;
     const router = useRouter();
     const { toast } = useToast();
     const [isSyncing, setIsSyncing] = React.useState(false);
@@ -34,24 +36,24 @@ export default function SalesDashboardPage() {
     }, []);
 
     const leadsQuery = useMemoFirebase(() => {
-        if (!firestore || !user?.id) return null;
-        return query(collection(firestore, 'leads'), where('assignedTo', '==', user.id), orderBy('createdAt', 'desc'));
-    }, [firestore, user]);
+        if (!firestore || !userId) return null;
+        return query(collection(firestore, 'leads'), where('assignedTo', '==', userId), orderBy('createdAt', 'desc'));
+    }, [firestore, userId]);
 
     const postingsQuery = useMemoFirebase(() => {
-        if (!firestore || !user?.id) return null;
-        return query(collection(firestore, 'dailyPostings'), where('userId', '==', user.id), orderBy('postedAt', 'desc'));
-    }, [firestore, user]);
+        if (!firestore || !userId) return null;
+        return query(collection(firestore, 'dailyPostings'), where('userId', '==', userId), orderBy('postedAt', 'desc'), limit(50));
+    }, [firestore, userId]);
 
     const reportsQuery = useMemoFirebase(() => {
-        if (!firestore || !user?.id) return null;
-        return query(collection(firestore, 'dailyReports'), where('userId', '==', user.id), orderBy('reportDate', 'desc'), limit(7));
-    }, [firestore, user]);
+        if (!firestore || !userId) return null;
+        return query(collection(firestore, 'dailyReports'), where('userId', '==', userId), orderBy('reportDate', 'desc'), limit(7));
+    }, [firestore, userId]);
 
     const tasksQuery = useMemoFirebase(() => {
-        if (!firestore || !user?.id) return null;
-        return query(collection(firestore, 'dailyTasks'), where('userId', '==', user.id), where('status', '==', 'Pending'));
-    }, [firestore, user]);
+        if (!firestore || !userId) return null;
+        return query(collection(firestore, 'dailyTasks'), where('userId', '==', userId), where('status', '==', 'Pending'));
+    }, [firestore, userId]);
 
     const trainingsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -59,9 +61,9 @@ export default function SalesDashboardPage() {
     }, [firestore]);
 
     const completionsQuery = useMemoFirebase(() => {
-        if (!firestore || !user?.id) return null;
-        return query(collection(firestore, 'salesTrainingCompletions'), where('userId', '==', user.id));
-    }, [firestore, user]);
+        if (!firestore || !userId) return null;
+        return query(collection(firestore, 'salesTrainingCompletions'), where('userId', '==', userId));
+    }, [firestore, userId]);
 
     const usersQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -109,7 +111,7 @@ export default function SalesDashboardPage() {
 
         return last7Days.map(date => ({
             date: date.split('-').slice(1).join('/'),
-            leads: leads.filter(l => l.createdAt.startsWith(date)).length,
+            leads: leads.filter(l => typeof l.createdAt === 'string' && l.createdAt.startsWith(date)).length,
         }));
     }, [leads]);
 
@@ -209,10 +211,10 @@ export default function SalesDashboardPage() {
 
     // Redirect users that are not on the Sales team away from this page
     React.useEffect(() => {
-        if (!userLoading && user && user.role !== 'Sales') {
+        if (!userLoading && userId && userRole !== 'Sales') {
             router.replace('/');
         }
-    }, [user, userLoading, router]);
+    }, [userId, userRole, userLoading, router]);
 
     if (!mounted || userLoading || leadsLoading || postingsLoading || reportsLoading || tasksLoading || trainingsLoading || completionsLoading) {
         return (

@@ -68,6 +68,7 @@ import { cn } from '@/lib/utils';
 export default function DesignerDashboardPage() {
     const firestore = useFirestore();
     const { user } = useUser();
+    const userId = user?.id;
     const { toast } = useToast();
 
     // Form State
@@ -81,14 +82,14 @@ export default function DesignerDashboardPage() {
 
     // Queries
     const workQuery = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
+        if (!firestore || !userId) return null;
         return query(
             collection(firestore, 'designerWork'),
-            where('userId', '==', user.id),
+            where('userId', '==', userId),
             orderBy('date', 'desc'),
             limit(10)
         );
-    }, [firestore, user]);
+    }, [firestore, userId]);
 
     const tasksQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -111,19 +112,19 @@ export default function DesignerDashboardPage() {
     }, [firestore]);
 
     const reportsQuery = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
+        if (!firestore || !userId) return null;
         return query(
             collection(firestore, 'dailyReports'),
-            where('userId', '==', user.id),
+            where('userId', '==', userId),
             orderBy('reportDate', 'desc'),
             limit(5)
         );
-    }, [firestore, user]);
+    }, [firestore, userId]);
 
     const dailyTasksQuery = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
-        return query(collection(firestore, 'dailyTasks'), where('userId', '==', user.id), orderBy('dueDate', 'desc'), limit(10));
-    }, [firestore, user]);
+        if (!firestore || !userId) return null;
+        return query(collection(firestore, 'dailyTasks'), where('userId', '==', userId), orderBy('dueDate', 'desc'), limit(10));
+    }, [firestore, userId]);
 
     const { data: recentWork, isLoading: workLoading } = useCollection<DesignerWork>(workQuery);
     const { data: adminTasks, isLoading: tasksLoading } = useCollection<AdminTaskTemplate>(tasksQuery);
@@ -137,7 +138,7 @@ export default function DesignerDashboardPage() {
     const taskProgressPercentage = totalDailyTasks > 0 ? Math.round((completedDailyTasks / totalDailyTasks) * 100) : 0;
 
     // Calculate Today's Progress
-    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const todayStr = React.useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
     const designsToday = recentWork?.filter(w => w.date === todayStr).length || 0;
     const progressPercentage = Math.min((designsToday / dailyGoal) * 100, 100);
 

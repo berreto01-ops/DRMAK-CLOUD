@@ -31,12 +31,12 @@ export default function DailyProgressPage() {
     const tasksQuery = useMemoFirebase(() => {
         if (!firestore || !user?.id) return null;
         return query(collection(firestore, 'dailyTasks'), where('userId', '==', user.id), orderBy('dueDate', 'desc'));
-    }, [firestore, user]);
+    }, [firestore, user?.id]);
 
     const reportsQuery = useMemoFirebase(() => {
         if (!firestore || !user?.id) return null;
         return query(collection(firestore, 'dailyReports'), where('userId', '==', user.id), orderBy('reportDate', 'desc'));
-    }, [firestore, user]);
+    }, [firestore, user?.id]);
 
     const { data: tasks, isLoading: tasksLoading, error: tasksError } = useCollection<DailyTask>(tasksQuery);
     const { data: latestReport, isLoading: reportsLoading, error: reportsError } = useCollection<DailyReport>(reportsQuery);

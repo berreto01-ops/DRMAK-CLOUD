@@ -42,7 +42,7 @@ export default function DailyReportingPage() {
     const reportsQuery = useMemoFirebase(() => {
         if (!firestore || !user?.id) return null;
         return query(collection(firestore, 'dailyReports'), where('userId', '==', user.id), orderBy('reportDate', 'desc'));
-    }, [firestore, user]);
+    }, [firestore, user?.id]);
 
     const { data: reports, isLoading: reportsLoading, error, forceRerender } = useCollection<DailyReport>(reportsQuery);
 
@@ -56,7 +56,7 @@ export default function DailyReportingPage() {
             where('userId', '==', user.id),
             where('postedAt', '>=', start.toISOString())
         );
-    }, [firestore, user]);
+    }, [firestore, user?.id]);
     const { data: todayPostings } = useCollection<DailyPosting>(todayPostingsQuery);
 
     // Fetch Today's Lead Activity
@@ -69,7 +69,7 @@ export default function DailyReportingPage() {
             where('assignedTo', '==', user.id),
             where('createdAt', '>=', start.toISOString())
         );
-    }, [firestore, user]);
+    }, [firestore, user?.id]);
     const { data: todayLeads } = useCollection<Lead>(todayLeadsQuery);
 
     const lastErrorRef = React.useRef<string | null>(null);
