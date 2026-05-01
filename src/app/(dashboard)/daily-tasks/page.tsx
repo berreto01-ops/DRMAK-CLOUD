@@ -44,7 +44,7 @@ export default function DailyTasksPage() {
     const tasksQuery = useMemoFirebase(() => {
         if (!firestore || !user?.id) return null;
         return query(collection(firestore, 'dailyTasks'), where('userId', '==', user.id), orderBy('dueDate', 'desc'));
-    }, [firestore, user]);
+    }, [firestore, user?.id]);
 
     const { data: tasks, isLoading, error, forceRerender } = useCollection<DailyTask>(tasksQuery);
 
@@ -124,19 +124,19 @@ export default function DailyTasksPage() {
 
     // ADMIN TEMPLATES LOGIC - Filter by assigned user
     const templateQuery = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
+        if (!firestore || !user?.id) return null;
         // Show templates assigned to this user OR assigned to "all"
         return query(
             collection(firestore, 'adminTaskTemplates'),
             orderBy('createdAt', 'desc')
         );
-    }, [firestore, user]);
+    }, [firestore, user?.id]);
     const { data: templates } = useCollection<any>(templateQuery);
 
-    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const todayStr = React.useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
     const completionRef = useMemoFirebase(
-        () => (firestore && user ? doc(firestore, 'dailyTaskCompletions', `${user.id}_${todayStr}`) : null),
-        [firestore, user, todayStr]
+        () => (firestore && user?.id ? doc(firestore, 'dailyTaskCompletions', `${user.id}_${todayStr}`) : null),
+        [firestore, user?.id, todayStr]
     );
     const { data: completionData } = useDoc<any>(completionRef);
     const completedTemplateIds: string[] = completionData?.completedTemplateIds || [];

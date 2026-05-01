@@ -60,21 +60,21 @@ export default function ContentPlannerUpgrade() {
     
     // Data Fetching
     const postsQuery = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
-        
+        if (!firestore || !user?.id) return null;
+
         // Social Media Manager and Designer share the same unified calendar
         const isSocialStaff = user.role === 'Social Media Manager' || user.role === 'Designer' || user.role === 'Admin';
-        
+
         if (isSocialStaff) {
             return query(collection(firestore, 'scheduledPosts'));
         }
-        
+
         // Others (if any) only see their own posts
         return query(
             collection(firestore, 'scheduledPosts'),
             where('userId', '==', user.id)
         );
-    }, [firestore, user]);
+    }, [firestore, user?.id, user?.role]);
 
     const { data: rawPosts, isLoading } = useCollection<ScheduledPost>(postsQuery);
 

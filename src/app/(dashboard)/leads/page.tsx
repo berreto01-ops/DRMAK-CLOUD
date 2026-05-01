@@ -359,13 +359,13 @@ export default function LeadsPage() {
   const { searchTerm } = useSearch();
 
   const leadsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user?.id) return null;
     const baseQuery = collection(firestore, 'leads');
     if (user.role === 'Sales') {
       return query(baseQuery, where('assignedTo', '==', user.id));
     }
     return baseQuery;
-  }, [firestore, user]);
+  }, [firestore, user?.id, user?.role]);
 
   const usersQuery = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
 
@@ -397,12 +397,13 @@ export default function LeadsPage() {
 
   // Fetch settings
   // Fetch settings
+  const userAssignedSheet = (user as any)?.assignedSheet;
   React.useEffect(() => {
-    if (!firestore || !user) return;
+    if (!firestore || !user?.id) return;
 
     // 1. Priority: User's assigned sheet
-    if ((user as any).assignedSheet) {
-      setSheetUrl((user as any).assignedSheet);
+    if (userAssignedSheet) {
+      setSheetUrl(userAssignedSheet);
       return;
     }
 
@@ -415,7 +416,7 @@ export default function LeadsPage() {
       }
     };
     fetchSettings();
-  }, [firestore, user]);
+  }, [firestore, user?.id, userAssignedSheet]);
 
   // Fetch Sheet Data removed - handled by hook
 

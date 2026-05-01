@@ -1229,16 +1229,12 @@ const AdminDailyIntelligence = ({
 const AdminDashboard = () => {
     const { searchTerm } = useSearch();
     const firestore = useFirestore();
-    const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(undefined);
+    const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(() => new Date());
     const [periodMode, setPeriodMode] = React.useState<'day' | 'month' | 'year' | 'range'>('day');
-    const [selectedRange, setSelectedRange] = React.useState<DateRange | undefined>({
+    const [selectedRange, setSelectedRange] = React.useState<DateRange | undefined>(() => ({
         from: startOfMonth(new Date()),
         to: new Date(),
-    });
-
-    React.useEffect(() => {
-        setSelectedDate(new Date());
-    }, []);
+    }));
 
     const appointmentsRef = useMemoFirebase(() => firestore ? collection(firestore, 'appointments') : null, [firestore]);
     const doctorsRef = useMemoFirebase(() => firestore ? collection(firestore, 'doctors') : null, [firestore]);
@@ -1266,12 +1262,12 @@ const AdminDashboard = () => {
             patient: patientsMap.get(apt.patientMobileNumber),
         }));
 
-        const term = searchTerm.toLowerCase();
+        const term = (searchTerm || '').toLowerCase();
         if (term) {
             apts = apts.filter(apt =>
-                apt.patient?.name.toLowerCase().includes(term) ||
-                apt.doctor?.fullName.toLowerCase().includes(term) ||
-                (apt.patient?.mobileNumber && apt.patient.mobileNumber.toLowerCase().includes(term))
+                (apt.patient?.name || '').toLowerCase().includes(term) ||
+                (apt.doctor?.fullName || '').toLowerCase().includes(term) ||
+                (apt.patient?.mobileNumber || '').toLowerCase().includes(term)
             );
         }
         return apts;
@@ -1569,10 +1565,11 @@ const AdminDashboard = () => {
 const SalesDashboard = () => {
     const firestore = useFirestore();
     const { user } = useUser();
+    const userId = user?.id;
     const leadsQuery = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
-        return query(collection(firestore, 'leads'), where('assignedTo', '==', user.id));
-    }, [firestore, user]);
+        if (!firestore || !userId) return null;
+        return query(collection(firestore, 'leads'), where('assignedTo', '==', userId));
+    }, [firestore, userId]);
 
     const { data: leads, isLoading } = useCollection<Lead>(leadsQuery);
     const { summaryMetrics, isLoading: analyticsLoading } = useAnalyticsData();
@@ -1745,22 +1742,25 @@ const DoctorDashboard = () => {
     const doctorsRef = useMemoFirebase(() => firestore ? collection(firestore, 'doctors') : null, [firestore]);
     const { data: doctors } = useCollection<Doctor>(doctorsRef);
 
+    const userDoctorId = user?.doctorId;
+    const userIdForDoctor = user?.id;
+    const userNameForDoctor = user?.name;
     const appointmentsQuery = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
-        
-        let targetDoctorId = user.doctorId || user.id;
+        if (!firestore || !userIdForDoctor) return null;
+
+        let targetDoctorId = userDoctorId || userIdForDoctor;
 
         // Auto-resolve if user.doctorId is missing but we can match by name
-        if (!user.doctorId && doctors && user.name) {
-            const normalizedUserName = user.name.toLowerCase().replace(/^dr\.?\s+/g, '').trim();
+        if (!userDoctorId && doctors && userNameForDoctor) {
+            const normalizedUserName = userNameForDoctor.toLowerCase().replace(/^dr\.?\s+/g, '').trim();
             const matchedDoctor = doctors.find(d => {
                 if (!d.fullName) return false;
                 const normalizedDocName = d.fullName.toLowerCase().replace(/^dr\.?\s+/g, '').trim();
-                return normalizedDocName === normalizedUserName || 
-                       normalizedDocName.includes(normalizedUserName) || 
+                return normalizedDocName === normalizedUserName ||
+                       normalizedDocName.includes(normalizedUserName) ||
                        normalizedUserName.includes(normalizedDocName);
             });
-            
+
             if (matchedDoctor) {
                 targetDoctorId = matchedDoctor.id;
             }
@@ -1770,7 +1770,7 @@ const DoctorDashboard = () => {
             collection(firestore, 'appointments'),
             where('doctorId', '==', targetDoctorId)
         );
-    }, [firestore, user, doctors]);
+    }, [firestore, userIdForDoctor, userDoctorId, userNameForDoctor, doctors]);
 
     const { data: rawAppointments, isLoading: appointmentsLoading } = useCollection<Appointment>(appointmentsQuery);
 
@@ -2138,7 +2138,8 @@ const ReportsDashboard = () => {
             // 3. Leads assigned to or handled by the user
             const userLeadsActive = (allLeads || []).filter((l: any) => {
                 const isAssigned = l.assignedTo === u.id;
-                const isCreatedToday = l.createdAt?.startsWith(targetDay);
+                const createdAt = typeof l.createdAt === 'string' ? l.createdAt : '';
+                const isCreatedToday = createdAt.startsWith(targetDay);
                 return isAssigned || isCreatedToday;
             }).length;
 
@@ -2935,57 +2936,58 @@ export default function Dashboard() {
     const { viewMode, setViewMode } = useViewMode();
     const router = useRouter();
 
+    const userRole = user?.role;
+    const userEmail = user?.email;
+    const hasOrgAccess = !!user?.featureAccess?.['mgmt_organization'];
+    const hasClinicAccess = !!user?.featureAccess?.['mgmt_clinic'];
+    const hasReportsAccess = !!user?.featureAccess?.['mgmt_reports'];
+
     // For the main Dashboard rendering logic, isMainAdmin means they have access to the ViewModeSelection screen
     // (either because they are a super user, OR because they have at least one mgmt_* flag)
     const isMainAdmin = React.useMemo(() =>
-        user?.email === 'admin1@skinsmith.com' ||
-        user?.role === 'Admin' ||
-        user?.role === 'Operations Manager' ||
-        user?.featureAccess?.['mgmt_clinic'] ||
-        user?.featureAccess?.['mgmt_organization'] ||
-        user?.featureAccess?.['mgmt_reports'],
-        [user]);
+        userEmail === 'admin1@skinsmith.com' ||
+        userRole === 'Admin' ||
+        userRole === 'Operations Manager' ||
+        hasClinicAccess ||
+        hasOrgAccess ||
+        hasReportsAccess,
+        [userEmail, userRole, hasClinicAccess, hasOrgAccess, hasReportsAccess]);
 
     // Auto-routing logic for users with exactly ONE workstation feature granted
     const isSuperUser = React.useMemo(() =>
-        user?.email === 'admin1@skinsmith.com' || user?.role === 'Admin',
-        [user]);
+        userEmail === 'admin1@skinsmith.com' || userRole === 'Admin',
+        [userEmail, userRole]);
 
     React.useEffect(() => {
-        if (!isUserLoading && user && viewMode === 'none') {
+        if (!isUserLoading && userRole && viewMode === 'none') {
             // Operations Manager always goes straight to the organization dashboard
-            if (user.role === 'Operations Manager') {
+            if (userRole === 'Operations Manager') {
                 setViewMode('clinic');
                 return;
             }
 
             if (!isSuperUser) {
-                const hasOrg = !!user.featureAccess?.['mgmt_organization'];
-                const hasClinic = !!user.featureAccess?.['mgmt_clinic'];
-                const hasReports = !!user.featureAccess?.['mgmt_reports'];
-
-                if (hasClinic && !hasOrg && !hasReports) {
+                if (hasClinicAccess && !hasOrgAccess && !hasReportsAccess) {
                     setViewMode('clinic');
-                } else if (hasOrg && !hasClinic && !hasReports) {
+                } else if (hasOrgAccess && !hasClinicAccess && !hasReportsAccess) {
                     setViewMode('organization');
-                } else if (hasReports && !hasOrg && !hasClinic) {
+                } else if (hasReportsAccess && !hasOrgAccess && !hasClinicAccess) {
                     setViewMode('reports');
                 }
             }
         }
-    }, [isUserLoading, user, isSuperUser, viewMode, setViewMode]);
+    }, [isUserLoading, userRole, hasOrgAccess, hasClinicAccess, hasReportsAccess, isSuperUser, viewMode, setViewMode]);
 
     React.useEffect(() => {
-        if (!isUserLoading && user?.role === 'Sales') {
+        if (isUserLoading || !userRole) return;
+        if (userRole === 'Sales') {
             router.replace('/sales-dashboard');
-        }
-        if (!isUserLoading && user?.role === 'Social Media Manager') {
+        } else if (userRole === 'Social Media Manager') {
             router.replace('/social-dashboard');
-        }
-        if (!isUserLoading && user?.role === 'Designer') {
+        } else if (userRole === 'Designer') {
             router.replace('/designer-dashboard');
         }
-    }, [user, isUserLoading, router]);
+    }, [userRole, isUserLoading, router]);
 
     if (isUserLoading) {
         return (

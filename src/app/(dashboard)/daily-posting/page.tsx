@@ -88,7 +88,7 @@ export default function DailyPostingPage() {
             return query(collection(firestore, 'dailyPostings'));
         }
         return query(collection(firestore, 'dailyPostings'), where('userId', '==', user.id));
-    }, [firestore, user]);
+    }, [firestore, user?.id, user?.role]);
 
     const { data: rawPostings, isLoading, forceRerender } = useCollection<DailyPosting>(postingsQuery);
 

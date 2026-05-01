@@ -76,12 +76,12 @@ export default function DesignerPlannerPage() {
 
     // Fetch tasks ONLY for this designer user — no orderBy to avoid composite index requirement
     const tasksQuery = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
+        if (!firestore || !user?.id) return null;
         return query(
             collection(firestore, 'designerCalendarTasks'),
             where('userId', '==', user.id)
         );
-    }, [firestore, user]);
+    }, [firestore, user?.id]);
 
     const { data: rawTasks, isLoading } = useCollection<DesignerTask>(tasksQuery);
 

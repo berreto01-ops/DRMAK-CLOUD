@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo, ReactNode } from 'react';
 import { useAuth } from '@/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -48,17 +48,21 @@ export function ViewModeProvider({ children }: { children: ReactNode }) {
         return () => unsubscribe();
     }, [auth]);
 
-    const setViewMode = (mode: ViewMode) => {
+    const setViewMode = useCallback((mode: ViewMode) => {
         setViewModeState(mode);
-        if (mode === 'none') {
-            localStorage.removeItem(VIEW_MODE_KEY);
-        } else {
-            localStorage.setItem(VIEW_MODE_KEY, mode);
+        if (typeof window !== 'undefined') {
+            if (mode === 'none') {
+                localStorage.removeItem(VIEW_MODE_KEY);
+            } else {
+                localStorage.setItem(VIEW_MODE_KEY, mode);
+            }
         }
-    };
+    }, []);
+
+    const value = useMemo(() => ({ viewMode, setViewMode }), [viewMode, setViewMode]);
 
     return (
-        <ViewModeContext.Provider value={{ viewMode, setViewMode }}>
+        <ViewModeContext.Provider value={value}>
             {children}
         </ViewModeContext.Provider>
     );

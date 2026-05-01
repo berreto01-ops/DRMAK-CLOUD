@@ -154,9 +154,9 @@ export default function CreativeRequestHistoryPage() {
 
     // Admins/Designers see all requests; Social Media Managers see only their own
     const requestsQuery = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
+        if (!firestore || !user?.id) return null;
         return query(collection(firestore, 'designRequests'), orderBy('createdAt', 'desc'));
-    }, [firestore, user]);
+    }, [firestore, user?.id]);
 
     const { data: allRequests, isLoading } = useCollection<DesignRequest>(requestsQuery);
 
@@ -176,10 +176,10 @@ export default function CreativeRequestHistoryPage() {
             Approved: base.filter(r => r.status === 'Approved').length,
             Rejected: base.filter(r => r.status === 'Rejected').length,
         };
-    }, [allRequests, user]);
+    }, [allRequests, user?.id, user?.role]);
 
     const filteredRequests = React.useMemo(() => {
-        if (!allRequests || !user) return [];
+        if (!allRequests || !user?.id) return [];
 
         // Role-based visibility: Designers & Admins see all, SMM sees only their own
         let filtered = allRequests.filter(r =>
@@ -192,7 +192,7 @@ export default function CreativeRequestHistoryPage() {
             filtered = filtered.filter(r => r.status === statusFilter);
         }
 
-        const term = searchTerm.toLowerCase();
+        const term = (searchTerm || '').toLowerCase();
         if (term) {
             filtered = filtered.filter(r =>
                 (r.title || '').toLowerCase().includes(term) ||
@@ -202,7 +202,7 @@ export default function CreativeRequestHistoryPage() {
         }
 
         return filtered;
-    }, [allRequests, statusFilter, searchTerm, user]);
+    }, [allRequests, statusFilter, searchTerm, user?.id, user?.role]);
 
     const handleDelete = async (id: string) => {
         if (!firestore) return;

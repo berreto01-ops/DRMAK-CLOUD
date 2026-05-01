@@ -27,6 +27,7 @@ export type SummaryMetrics = {
     patientChange: number;
     reachChange: number;
     followerChange: number;
+    engagementChange: number;
 };
 
 export type RevenueTrend = {
@@ -54,6 +55,7 @@ export function useAnalyticsData() {
         patientChange: 0,
         reachChange: 0,
         followerChange: 0,
+        engagementChange: 0,
     });
 
     const fetchData = React.useCallback(async () => {
@@ -138,7 +140,8 @@ export function useAnalyticsData() {
             const totalEngagement = engagementIdx !== -1 ? dataRows.reduce((acc, row) => acc + (Number(row[engagementIdx]) || 0), 0) : 0;
             const avgEngagementRate = totalReachVal > 0 ? (totalEngagement / totalReachVal) * 100 : 0;
 
-            setSummaryMetrics({
+            setSummaryMetrics(prev => ({
+                ...prev,
                 totalReach: totalReachVal,
                 newFollowers: newFollowersVal,
                 engagementRate: Number(avgEngagementRate.toFixed(1)),
@@ -146,7 +149,7 @@ export function useAnalyticsData() {
                 reachChange: 0,
                 followerChange: 0,
                 engagementChange: 0,
-            });
+            }));
 
             // 5. Fetch Firestore Data (Revenue & Patients)
             const billingRef = collection(firestore, 'billingRecords');
@@ -226,6 +229,7 @@ export function useAnalyticsData() {
                 patientChange: patChange,
                 reachChange: 0,
                 followerChange: 0,
+                engagementChange: 0,
             });
 
         } catch (err: any) {

@@ -97,30 +97,30 @@ import { Coins, PiggyBank, Target, Megaphone } from 'lucide-react';
 export default function SocialDashboardPage() {
     const firestore = useFirestore();
     const { user, isUserLoading } = useUser();
+    const userId = user?.id;
+
+    // Today's start-of-day boundary, computed once per mount so deps don't churn.
+    const todayIso = React.useMemo(() => startOfDay(new Date()).toISOString(), []);
 
     // Data Fetching
     const postQuery = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
-        const today = startOfDay(new Date()).toISOString();
-        return query(collection(firestore, 'dailyPostings'), where('userId', '==', user.id), where('postedAt', '>=', today));
-    }, [firestore, user]);
+        if (!firestore || !userId) return null;
+        return query(collection(firestore, 'dailyPostings'), where('userId', '==', userId), where('postedAt', '>=', todayIso));
+    }, [firestore, userId, todayIso]);
 
     const reportQuery = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
-        const today = startOfDay(new Date()).toISOString();
-        return query(collection(firestore, 'socialReports'), where('userId', '==', user.id), where('reportDate', '>=', today));
-    }, [firestore, user]);
+        if (!firestore || !userId) return null;
+        return query(collection(firestore, 'socialReports'), where('userId', '==', userId), where('reportDate', '>=', todayIso));
+    }, [firestore, userId, todayIso]);
 
     const tasksQuery = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
+        if (!firestore || !userId) return null;
         return query(
             collection(firestore, 'adminTaskTemplates'),
             where('category', '==', 'Social Media'),
             limit(10)
-        )
-        // Note: Removed OR filter due to QueryConstraintType incompatibility. 
-        // In a real app, you might need to combine results or fix the SDK usage.
-    }, [firestore, user]);
+        );
+    }, [firestore, userId]);
 
     const designersQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -145,12 +145,12 @@ export default function SocialDashboardPage() {
 
     // Design Requests Query
     const requestsQuery = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
-        return query(collection(firestore, 'designRequests'), where('requesterId', '==', user.id), orderBy('createdAt', 'desc'), limit(10));
-    }, [firestore, user]);
+        if (!firestore || !userId) return null;
+        return query(collection(firestore, 'designRequests'), where('requesterId', '==', userId), orderBy('createdAt', 'desc'), limit(10));
+    }, [firestore, userId]);
 
     const { data: designRequests, isLoading: requestsLoading, error: requestsError } = useCollection<DesignRequest>(requestsQuery);
-    const { summaryMetrics, isLoading: analyticsLoading } = useAnalyticsData();
+    const { summaryMetrics, isLoading: analyticsLoading, refresh: refreshAnalytics } = useAnalyticsData();
 
     const { toast } = useToast();
 
@@ -192,8 +192,8 @@ export default function SocialDashboardPage() {
             await setDoc(doc(firestore, 'settings', 'socialMedia'), { googleSheetLink: sheetLink }, { merge: true });
             toast({ title: 'Settings Saved', description: 'Social Media configuration updated.' });
             setIsSettingsOpen(false);
-            // Refresh analytics
-            window.location.reload(); // Simplest way to re-trigger global hook if needed, or we could expose refresh
+            // Refresh analytics in-place (no full page reload)
+            refreshAnalytics();
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Update Failed', description: error.message });
         } finally {
@@ -286,6 +286,7 @@ export default function SocialDashboardPage() {
 
     const { data: costData } = useCollection<SocialCost>(costQuery);
 
+    const costRecordId = costData && costData.length > 0 ? costData[0].id : null;
     React.useEffect(() => {
         if (costData && costData.length > 0) {
             const c = costData[0];
@@ -301,7 +302,10 @@ export default function SocialDashboardPage() {
             setOtherSpend(0);
             setCostNotes('');
         }
-    }, [costData]);
+        // Reload local form fields only when the underlying doc identity changes
+        // (i.e. when month/year selection lands on a different cost record),
+        // not on every onSnapshot tick.
+    }, [costRecordId]);
 
     const handleSaveSocialCost = async () => {
         if (!firestore || !user) return;

@@ -56,7 +56,7 @@ export default function SocialReportingPage() {
     const reportsQuery = useMemoFirebase(() => {
         if (!firestore || !user?.id) return null;
         return query(collection(firestore, 'socialReports'), where('userId', '==', user.id), orderBy('reportDate', 'desc'));
-    }, [firestore, user]);
+    }, [firestore, user?.id]);
 
     const { data: reports, isLoading } = useCollection<SocialReport>(reportsQuery);
 
