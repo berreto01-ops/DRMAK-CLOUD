@@ -510,7 +510,7 @@ function PrintStyles() {
           padding-top: 0 !important;
         }
         /* Ensure anything outside the print container is hidden */
-        #root, .main-layout, header, nav, footer, sidebar {
+        #root, .main-layout, sidebar, nav, header, footer {
           display: none !important;
         }
       }
@@ -549,87 +549,113 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
         <div style={{ 
           position: 'relative', 
           zIndex: 1, 
-          paddingTop: '79mm', // Adjusted to match the "NAME" line on the right
-          paddingBottom: '40mm',
+          paddingTop: '58mm', 
+          paddingBottom: '30mm',
           paddingLeft: '18mm',
           paddingRight: '18mm',
-          display: 'flex', 
-          flexDirection: 'column', 
-          minHeight: '297mm',
+          display: 'grid', 
+          gridTemplateColumns: '1.2fr 1fr', 
+          gap: '12mm',
+          minHeight: '240mm', 
           background: 'transparent',
           color: INK
         }}>
-          {/* Patient info - Positioned to the right to match template lines */}
-          <div style={{ 
-            display: 'flex',
-            justifyContent: 'flex-end',
-            marginBottom: '10mm'
-          }}>
-            <div style={{ 
-              width: '45%', // Take up the right half
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '11mm', // Larger gap to match the lines on the template
-              fontSize: '11pt',
-              fontWeight: 700,
-              color: INK
-            }}>
-              <div style={{ minHeight: '6mm', display: 'flex', alignItems: 'center' }}>{p.patient?.name}</div>
-              <div style={{ minHeight: '6mm', display: 'flex', alignItems: 'center' }}>{p.prescriptionAge ? `${p.prescriptionAge} Years` : ''}</div>
-              <div style={{ minHeight: '6mm', display: 'flex', alignItems: 'center' }}>{p.patient?.gender}</div>
-              <div style={{ minHeight: '6mm', display: 'flex', alignItems: 'center' }}>{p.today}</div>
-            </div>
+          {/* Left Column: Primary Clinical Information (1 to 6) */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {/* 1. Chief Complaints */}
+            {p.chiefComplaint && (
+              <div style={{ marginBottom: '5mm' }}>
+                <div style={{ fontSize: '9pt', fontWeight: 800, color: GOLD, marginBottom: '1mm' }}>1. Chief Complaints:</div>
+                <div style={{ fontSize: '11pt', lineHeight: 1.4, paddingLeft: '2mm', whiteSpace: 'pre-line' }}>
+                  {p.chiefComplaint}
+                </div>
+              </div>
+            )}
+
+            {/* 2. Examination */}
+            {p.examination && (
+              <div style={{ marginBottom: '5mm' }}>
+                <div style={{ fontSize: '9pt', fontWeight: 800, color: GOLD, marginBottom: '1mm' }}>2. Examination:</div>
+                <div style={{ fontSize: '11pt', lineHeight: 1.4, paddingLeft: '2mm', whiteSpace: 'pre-line' }}>
+                  {p.examination}
+                </div>
+              </div>
+            )}
+
+            {/* 3. Diagnosis */}
+            {p.diagnosis && (
+              <div style={{ marginBottom: '5mm' }}>
+                <div style={{ fontSize: '9pt', fontWeight: 800, color: GOLD, marginBottom: '1mm' }}>3. Diagnosis:</div>
+                <div style={{ fontSize: '11pt', fontWeight: 700, paddingLeft: '2mm', whiteSpace: 'pre-line' }}>
+                  {p.diagnosis}
+                </div>
+              </div>
+            )}
+
+            {/* 4. Allergies */}
+            {p.allergies && (
+              <div style={{ marginBottom: '5mm' }}>
+                <div style={{ fontSize: '9pt', fontWeight: 800, color: GOLD, marginBottom: '1mm' }}>4. Allergies:</div>
+                <div style={{ fontSize: '10.5pt', fontWeight: 800, color: '#c53030', paddingLeft: '2mm', whiteSpace: 'pre-line' }}>
+                  {p.allergies}
+                </div>
+              </div>
+            )}
+
+            {/* 5. Co-Morbids */}
+            {p.coMorbids && (
+              <div style={{ marginBottom: '6mm' }}>
+                <div style={{ fontSize: '9pt', fontWeight: 800, color: GOLD, marginBottom: '1mm' }}>5. Co-Morbids:</div>
+                <div style={{ fontSize: '11pt', paddingLeft: '2mm', whiteSpace: 'pre-line' }}>
+                  {p.coMorbids}
+                </div>
+              </div>
+            )}
+
+            {/* 6. Treatment (Medicines) */}
+            {namedMeds.length > 0 && (
+              <div style={{ marginTop: '2mm', marginBottom: '5mm' }}>
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '2mm' }}>
+                  <span style={{ fontSize: '16pt', fontWeight: 800, color: GOLD, fontFamily: 'serif', marginRight: '3mm' }}>℞</span>
+                  <span style={{ fontSize: '9pt', fontWeight: 800, color: GOLD }}>6. Treatment (Medicines):</span>
+                </div>
+                <div style={{ paddingLeft: '4mm' }}>
+                  {namedMeds.map((med, i) => (
+                    <div key={med.id} style={{ marginBottom: '4mm' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                        <div style={{ fontSize: '11pt', fontWeight: 700, color: INK }}>{i + 1}. {med.name}</div>
+                        <div style={{ fontSize: '9.5pt', color: INK, fontWeight: 700 }}>{med.dosage} — {med.frequency}</div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1mm', paddingLeft: '4mm' }}>
+                        <div style={{ fontSize: '9pt', color: '#666', fontWeight: 600 }}>Duration: {med.duration}</div>
+                        {med.instructions && (
+                          <div style={{ fontSize: '9pt', color: INK, fontStyle: 'italic', fontWeight: 500 }}>
+                            <span style={{ color: GOLD, fontWeight: 800, fontStyle: 'normal' }}>Note: </span>{med.instructions}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Rx Content */}
-          <div style={{ flex: 1, marginTop: '12mm' }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6mm' }}>
-              <RxSymbol />
-              <div style={{ fontSize: '11pt', fontWeight: 900, color: GOLD, textTransform: 'uppercase', letterSpacing: '2px' }}>Treatment Plan</div>
-            </div>
-            
-            <div style={{ paddingLeft: '4mm' }}>
-              {namedMeds.length === 0 && <div style={{ fontSize: '10pt', color: '#ccc', fontStyle: 'italic' }}>No medication prescribed.</div>}
-              {namedMeds.map((med, i) => (
-                <div key={med.id} style={{ marginBottom: '6mm' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <div style={{ fontSize: '13pt', fontWeight: 800, color: INK }}>{i + 1}. {med.name}</div>
-                    <div style={{ fontSize: '11pt', color: GOLD, fontWeight: 700 }}>{med.dosage} — {med.frequency}</div>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5mm', paddingLeft: '4mm' }}>
-                    <div style={{ fontSize: '10pt', color: '#666', fontWeight: 600 }}>Duration: {med.duration}</div>
-                    {med.instructions && (
-                      <div style={{ fontSize: '10pt', color: INK, fontStyle: 'italic', fontWeight: 500 }}>
-                        <span style={{ color: GOLD, fontWeight: 800, fontStyle: 'normal' }}>Note: </span>{med.instructions}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Diagnosis, Advice & Procedure */}
-            <div style={{ marginTop: '10mm', display: 'flex', flexDirection: 'column', gap: '6mm' }}>
-               {p.diagnosis && (
-                  <div>
-                    <div style={{ fontSize: '7.5pt', fontWeight: 800, textTransform: 'uppercase', color: GOLD, marginBottom: '1mm' }}>Diagnosis</div>
-                    <div style={{ fontSize: '11pt', fontWeight: 700 }}>{p.diagnosis}</div>
-                  </div>
-               )}
-               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8mm' }}>
-                  {p.advice && (
-                    <div>
-                      <div style={{ fontSize: '7.5pt', fontWeight: 800, textTransform: 'uppercase', color: GOLD, marginBottom: '1mm' }}>Advice</div>
-                      <div style={{ fontSize: '10pt', lineHeight: 1.5 }}>{p.advice}</div>
-                    </div>
-                  )}
-                  {p.procedure && (
-                    <div>
-                      <div style={{ fontSize: '7.5pt', fontWeight: 800, textTransform: 'uppercase', color: GOLD, marginBottom: '1mm' }}>Procedure</div>
-                      <div style={{ fontSize: '10pt', lineHeight: 1.5 }}>{p.procedure}</div>
-                    </div>
-                  )}
-               </div>
+          {/* Right Column: Patient Info & Spillover Care Plan (7 to 9) */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {/* Patient Data Block */}
+            <div style={{ 
+              display: 'flex',
+              flexDirection: 'column',
+              fontSize: '11.5pt', 
+              fontWeight: 700,
+              paddingLeft: '32mm', 
+              marginBottom: '25mm'
+            }}>
+              <div style={{ height: '15.5mm', display: 'flex', alignItems: 'center' }}>{p.patient?.name}</div>
+              <div style={{ height: '19.5mm', display: 'flex', alignItems: 'center' }}>{p.prescriptionAge ? `${p.prescriptionAge} Years` : ''}</div>
+              <div style={{ height: '25mm', display: 'flex', alignItems: 'center' }}>{p.patient?.gender}</div>
+              <div style={{ height: '12mm', display: 'flex', alignItems: 'center' }}>{p.today}</div>
             </div>
           </div>
         </div>
@@ -637,6 +663,7 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
     </div>
   );
 }
+
 
 export function PrescriptionPreview({ hideBranding, ...rest }: PrescriptionPreviewProps) {
   if (hideBranding) return <LetterheadLayout {...rest} />;

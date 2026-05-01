@@ -202,6 +202,7 @@ export default function EPrescriptionPage() {
         allergies,
         coMorbids,
         notes,
+        prescriptionAge: prescriptionAge || selectedPatient.age || '',
         createdAt: new Date().toISOString(),
       });
       setSavedId(docRef.id);
@@ -367,21 +368,26 @@ export default function EPrescriptionPage() {
                 )}
                 {selectedPatient && (
                   <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                    <div>
+                    <div className="flex-1">
                       <p className="font-semibold text-sm">{selectedPatient.name}</p>
-                      <p className="text-xs text-muted-foreground">{selectedPatient.mobileNumber} · {selectedPatient.gender} · Age {selectedPatient.age}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="secondary" className="text-[10px] h-4.5 px-1.5">{selectedPatient.gender}</Badge>
+                        <p className="text-[11px] text-muted-foreground">{selectedPatient.mobileNumber}</p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex flex-col items-end">
-                        <Label className="text-[10px] mb-1">Override Age</Label>
+                    <div className="flex items-center gap-3 pl-4 border-l">
+                      <div className="flex flex-col gap-1">
+                        <Label className="text-[10px] font-bold text-primary uppercase tracking-wider">Age (Years)</Label>
                         <Input 
-                          placeholder="Age..." 
-                          className="w-16 h-8 text-xs" 
+                          placeholder={selectedPatient.age?.toString() || "Age..."} 
+                          className="w-20 h-9 text-sm font-bold bg-white" 
                           value={prescriptionAge} 
                           onChange={e => setPrescriptionAge(e.target.value)} 
                         />
                       </div>
-                      <Button size="sm" variant="ghost" onClick={() => setSelectedPatient(null)}>×</Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => { setSelectedPatient(null); setPrescriptionAge(''); }}>
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 )}
