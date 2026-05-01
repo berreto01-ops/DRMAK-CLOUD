@@ -6,6 +6,7 @@ import {
     CardHeader,
     CardTitle,
     CardDescription,
+    CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,7 +44,10 @@ import {
     DialogHeader,
     DialogTitle,
     DialogDescription,
+    DialogFooter,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     useCollection,
     useFirestore,
@@ -78,10 +82,12 @@ const StatusBadge = ({ status }: { status: DesignRequest['status'] }) => {
 
 // ─── Detail Dialog ──────────────────────────────────────────────────────────
 
-const DetailDialog = ({ open, onOpenChange, request }: {
+const DetailDialog = ({ open, onOpenChange, request, user, onOpenSubmit }: {
     open: boolean;
     onOpenChange: (v: boolean) => void;
     request: DesignRequest | null;
+    user: any;
+    onOpenSubmit: (id: string, url: string) => void;
 }) => {
     if (!request) return null;
     return (
@@ -136,6 +142,19 @@ const DetailDialog = ({ open, onOpenChange, request }: {
                         </div>
                     )}
                 </div>
+                {(user?.role === 'Designer' || user?.role === 'Admin') && request.status !== 'Approved' && (
+                    <DialogFooter>
+                        <Button
+                            className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                            onClick={() => {
+                                onOpenSubmit(request.id, request.submissionUrl || '');
+                                onOpenChange(false);
+                            }}
+                        >
+                            <Palette className="mr-2 h-4 w-4" /> Submit Design
+                        </Button>
+                    </DialogFooter>
+                )}
             </DialogContent>
         </Dialog>
     );
@@ -151,6 +170,32 @@ export default function CreativeRequestHistoryPage() {
     const [selectedRequest, setSelectedRequest] = React.useState<DesignRequest | null>(null);
     const [isDetailOpen, setIsDetailOpen] = React.useState(false);
     const [statusFilter, setStatusFilter] = React.useState<'All' | DesignRequest['status']>('All');
+
+    // Submission State for Designers
+    const [submissionUrl, setSubmissionUrl] = React.useState('');
+    const [isSubmittingAsset, setIsSubmittingAsset] = React.useState(false);
+    const [submitRequestId, setSubmitRequestId] = React.useState<string | null>(null);
+
+    const handleSubmitRequest = async () => {
+        if (!submissionUrl || !submitRequestId || !firestore) return;
+
+        setIsSubmittingAsset(true);
+        try {
+            const { updateDoc } = await import('firebase/firestore');
+            await updateDoc(doc(firestore, 'designRequests', submitRequestId), {
+                status: 'Submitted',
+                submissionUrl: submissionUrl,
+                updatedAt: new Date().toISOString(),
+            });
+            toast({ title: 'Submitted', description: 'Design submitted to requester!' });
+            setSubmissionUrl('');
+            setSubmitRequestId(null);
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to submit.' });
+        } finally {
+            setIsSubmittingAsset(false);
+        }
+    };
 
     // Admins/Designers see all requests; Social Media Managers see only their own
     const requestsQuery = useMemoFirebase(() => {
@@ -226,152 +271,191 @@ export default function CreativeRequestHistoryPage() {
     }
 
     return (
-        <div className="space-y-6">
-            <Card>
-                <CardHeader>
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div className="grid gap-1">
-                            <CardTitle className="text-2xl flex items-center gap-2">
-                                <Palette className="h-6 w-6 text-purple-600" /> Request Creative History
-                            </CardTitle>
-                            <CardDescription>
-                                {user?.role === 'Designer' || user?.role === 'Admin'
-                                    ? 'All creative requests across the team — sorted by most recent.'
-                                    : 'All creative requests you have submitted — track status and designer submissions.'}
-                            </CardDescription>
-                        </div>
-                        {/* Filter Tabs */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                            {tabOptions.map(tab => (
-                                <button
-                                    key={tab}
-                                    onClick={() => setStatusFilter(tab)}
-                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                                        statusFilter === tab
-                                            ? tabColors[tab]
-                                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
-                                    }`}
-                                >
-                                    {tab}
-                                    <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-black ${
-                                        statusFilter === tab ? 'bg-white/30' : 'bg-slate-100'
-                                    }`}>
-                                        {counts[tab as keyof typeof counts] ?? 0}
-                                    </span>
-                                </button>
-                            ))}
-                        </div>
+        <div className="space-y-8 max-w-7xl mx-auto">
+            <div className="flex flex-col gap-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="space-y-1">
+                        <h1 className="text-4xl font-black tracking-tighter text-slate-900 flex items-center gap-3">
+                            <Palette className="h-10 w-10 text-purple-600" />
+                            Requested Creatives
+                        </h1>
+                        <p className="text-slate-500 font-medium">
+                            {user?.role === 'Designer' || user?.role === 'Admin'
+                                ? 'Reviewing all creative requests across the team.'
+                                : 'Tracking your submitted creative requests and status.'}
+                        </p>
                     </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="rounded-md border overflow-hidden">
-                        <Table>
-                            <TableHeader className="bg-muted/50">
-                                <TableRow>
-                                    <TableHead>Title</TableHead>
-                                    <TableHead>Asset Type</TableHead>
-                                    <TableHead>Requested On</TableHead>
-                                    <TableHead>Deadline</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Submission</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredRequests.map(r => (
-                                    <TableRow
-                                        key={r.id}
-                                        className={cn(
-                                            'group cursor-pointer',
-                                            r.status === 'Approved' && 'bg-green-50/40 hover:bg-green-50/60',
-                                            r.status === 'Rejected' && 'bg-red-50/30 hover:bg-red-50/50',
-                                            r.status === 'Submitted' && 'bg-purple-50/30 hover:bg-purple-50/50',
-                                        )}
-                                        onClick={() => { setSelectedRequest(r); setIsDetailOpen(true); }}
-                                    >
-                                        <TableCell>
-                                            <div className="font-semibold text-sm max-w-[200px] truncate" title={r.title}>{r.title}</div>
-                                            {r.description && (
-                                                <div className="text-xs text-muted-foreground truncate max-w-[200px]" title={r.description}>
-                                                    {r.description}
-                                                </div>
-                                            )}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline" className="text-xs font-medium">{r.assetType}</Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                                <Clock className="h-3 w-3" />
-                                                {format(parseISO(r.createdAt), 'dd MMM yyyy')}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className="text-sm">
-                                                {r.deadline
-                                                    ? format(parseISO(r.deadline), 'dd MMM yyyy')
-                                                    : <span className="text-muted-foreground/40">—</span>}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell>
-                                            <StatusBadge status={r.status} />
-                                        </TableCell>
-                                        <TableCell>
-                                            {r.submissionUrl ? (
-                                                <a
-                                                    href={r.submissionUrl}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    onClick={e => e.stopPropagation()}
-                                                    className="inline-flex items-center gap-1 text-xs font-semibold text-purple-700 hover:underline"
-                                                >
-                                                    <ExternalLink className="h-3 w-3" /> View File
-                                                </a>
-                                            ) : (
-                                                <span className="text-muted-foreground/40 text-xs">—</span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-right" onClick={e => e.stopPropagation()}>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                    <DropdownMenuItem onClick={() => { setSelectedRequest(r); setIsDetailOpen(true); }}>
-                                                        <Eye className="mr-2 h-4 w-4" /> View Details
-                                                    </DropdownMenuItem>
-                                                    {(user?.role === 'Admin' || r.requesterId === user?.id) && (
-                                                        <DropdownMenuItem onClick={() => handleDelete(r.id)} className="text-red-600">
-                                                            <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                                        </DropdownMenuItem>
-                                                    )}
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {filteredRequests.length === 0 && (
-                                    <TableRow>
-                                        <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                                            {statusFilter === 'All'
-                                                ? 'No creative requests yet. Use "Request Creative" from your dashboard to submit one.'
-                                                : `No requests with status "${statusFilter}" found.`}
-                                        </TableCell>
-                                    </TableRow>
+
+                    <div className="flex items-center gap-2 flex-wrap bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100">
+                        {tabOptions.map(tab => (
+                            <button
+                                key={tab}
+                                onClick={() => setStatusFilter(tab)}
+                                className={cn(
+                                    "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all duration-200",
+                                    statusFilter === tab
+                                        ? tabColors[tab] + " shadow-md"
+                                        : "bg-transparent text-slate-500 hover:bg-slate-50"
                                 )}
-                            </TableBody>
-                        </Table>
+                            >
+                                {tab}
+                                <span className={cn(
+                                    "flex items-center justify-center w-5 h-5 rounded-lg text-[10px]",
+                                    statusFilter === tab ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+                                )}>
+                                    {counts[tab as keyof typeof counts] ?? 0}
+                                </span>
+                            </button>
+                        ))}
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredRequests.map(r => (
+                    <Card 
+                        key={r.id} 
+                        className={cn(
+                            "group relative overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 border-slate-200/60 flex flex-col",
+                            r.status === 'Approved' && "bg-gradient-to-br from-white to-green-50/30 border-green-100",
+                            r.status === 'Rejected' && "bg-gradient-to-br from-white to-red-50/30 border-red-100",
+                            r.status === 'Submitted' && "bg-gradient-to-br from-white to-purple-50/30 border-purple-100"
+                        )}
+                    >
+                        <CardHeader className="pb-3">
+                            <div className="flex justify-between items-start gap-2">
+                                <Badge variant="secondary" className="bg-slate-100 text-slate-600 border-none text-[10px] uppercase font-black tracking-widest px-2 py-0.5">
+                                    {r.assetType}
+                                </Badge>
+                                <StatusBadge status={r.status} />
+                            </div>
+                            <CardTitle className="text-xl font-black leading-tight mt-4 line-clamp-2 min-h-[3.5rem] text-slate-800">
+                                {r.title}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pb-4 flex-grow space-y-4">
+                            <p className="text-sm text-slate-500 font-medium line-clamp-3 min-h-[3rem]">
+                                {r.description || "No specific requirements provided for this asset."}
+                            </p>
+                            
+                            <div className="space-y-2.5 pt-4 border-t border-slate-100">
+                                <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-wider">
+                                    <span className="text-slate-400 flex items-center gap-1.5">
+                                        <Clock className="h-3 w-3" /> Requested
+                                    </span>
+                                    <span className="text-slate-600">{format(parseISO(r.createdAt), 'dd MMM yyyy')}</span>
+                                </div>
+                                {r.deadline && (
+                                    <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-wider">
+                                        <span className="text-slate-400 flex items-center gap-1.5">
+                                            <AlertCircle className="h-3 w-3 text-red-500" /> Deadline
+                                        </span>
+                                        <span className="text-red-600 bg-red-50 px-2 py-0.5 rounded-lg">{format(parseISO(r.deadline), 'dd MMM yyyy')}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {r.submissionUrl && (
+                                <div className="pt-2">
+                                    <a 
+                                        href={r.submissionUrl} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-center gap-2 w-full py-2.5 bg-purple-600 text-white rounded-2xl text-[10px] font-black hover:bg-purple-700 transition-all shadow-lg shadow-purple-100"
+                                        onClick={e => e.stopPropagation()}
+                                    >
+                                        <ExternalLink className="h-3.5 w-3.5" /> VIEW SUBMISSION
+                                    </a>
+                                </div>
+                            )}
+                        </CardContent>
+                        <CardFooter className="bg-slate-50/50 p-4 flex items-center gap-2">
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="flex-1 font-black text-[10px] h-9 rounded-xl border-slate-200 hover:bg-white"
+                                onClick={() => { setSelectedRequest(r); setIsDetailOpen(true); }}
+                            >
+                                <Eye className="mr-1.5 h-3.5 w-3.5" /> DETAILS
+                            </Button>
+                            
+                            {(user?.role === 'Designer' || user?.role === 'Admin') && r.status !== 'Approved' && (
+                                <Button 
+                                    size="sm" 
+                                    className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-black text-[10px] h-9 rounded-xl shadow-lg shadow-slate-200"
+                                    onClick={() => { setSubmitRequestId(r.id); setSubmissionUrl(r.submissionUrl || ''); }}
+                                >
+                                    <Palette className="mr-1.5 h-3.5 w-3.5" /> SUBMIT
+                                </Button>
+                            )}
+
+                            {(user?.role === 'Admin' || r.requesterId === user?.id) && (
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-9 w-9 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl"
+                                    onClick={() => handleDelete(r.id)}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            )}
+                        </CardFooter>
+                    </Card>
+                ))}
+                {filteredRequests.length === 0 && (
+                    <div className="col-span-full py-20 flex flex-col items-center justify-center bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-200">
+                        <div className="h-16 w-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4">
+                            <Palette className="h-8 w-8 text-slate-300" />
+                        </div>
+                        <h3 className="text-lg font-black text-slate-900">No requests found</h3>
+                        <p className="text-slate-500 font-medium text-sm mt-1">
+                            {statusFilter === 'All' 
+                                ? "There are no creative requests in the system yet." 
+                                : `No requests found with status "${statusFilter}"`}
+                        </p>
+                    </div>
+                )}
+            </div>
+
+            {/* Submission Dialog for Designers */}
+            <Dialog open={!!submitRequestId} onOpenChange={(open) => !open && setSubmitRequestId(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Submit Design</DialogTitle>
+                        <DialogDescription>Paste the link to your completed design.</DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div className="space-y-2">
+                            <Label>Submission URL (Canva, Drive, Link)</Label>
+                            <Input
+                                placeholder="Paste link here..."
+                                value={submissionUrl}
+                                onChange={e => setSubmissionUrl(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setSubmitRequestId(null)}>Cancel</Button>
+                        <Button
+                            className="bg-purple-600 hover:bg-purple-700 text-white"
+                            onClick={handleSubmitRequest}
+                            disabled={isSubmittingAsset}
+                        >
+                            {isSubmittingAsset ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : "Fulfill Request"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <DetailDialog
                 open={isDetailOpen}
                 onOpenChange={setIsDetailOpen}
                 request={selectedRequest}
+                user={user}
+                onOpenSubmit={(id, url) => {
+                    setSubmitRequestId(id);
+                    setSubmissionUrl(url);
+                }}
             />
         </div>
     );

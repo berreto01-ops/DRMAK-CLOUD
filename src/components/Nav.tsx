@@ -89,7 +89,7 @@ const allMenuItems: MenuItem[] = [
     { id: 'designerWork', href: '/designer-dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'creativeBriefs', href: '/daily-tasks', label: 'Creative Briefs', icon: ListTodo },
     { id: 'designerPlanner', href: '/designer-planner', label: 'My Planner', icon: CalendarCheck },
-    { id: 'creativeRequestHistory', href: '/creative-request-history', label: 'Request Creative History', icon: Palette },
+    { id: 'creativeRequestHistory', href: '/creative-request-history', label: 'Requested Creatives', icon: Palette },
 
     { id: 'printPrescription', href: '/print-prescription', label: 'Print Prescription', icon: Printer },
     { id: 'appointments', href: '/appointments', label: 'Appointments', icon: Calendar },
@@ -325,7 +325,7 @@ const NavContent = () => {
             baseAccessIds = [
                 'dashboard', 
                 'printPrescription', 'appointments', 'followUpCalendar', 'followUpHistory', 'patients', 'doctors', 'procedures', 'inventory', 'supplier', 'billing', 'todaySummary', 'dailyExpenses',
-                'leads', 'leadAssignment', 'employeeReports', 'socialReporting', 'aiTools'
+                'leads', 'leadAssignment', 'socialReporting', 'aiTools'
             ];
         } else if (userProfile?.role === 'Doctor') {
             // Doctor gets core clinical tools but NOT Health Records (admin-managed)
@@ -485,7 +485,7 @@ const NavContent = () => {
     const mainMenuItems = filteredNavItems.filter(item => !item.isMore);
 
     if (userProfile?.role === 'Social Media Manager' || userProfile?.role === 'Designer') {
-        const overviewIds = ['dashboard', 'designerWork'];
+        const overviewIds = userProfile?.role === 'Designer' ? ['designerWork'] : ['dashboard'];
         const toolIds = ['contentPlanner', 'dailyPosting', 'socialInbox', 'creativeRequestHistory', 'creativeBriefs'];
         const insightIds = ['socialReporting', 'reachTracker', 'leadAssignment', 'dailyReporting'];
 
