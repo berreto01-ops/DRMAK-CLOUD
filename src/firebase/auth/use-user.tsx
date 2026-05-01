@@ -21,24 +21,24 @@ export function useUser() {
 
   const { data: userProfile, isLoading: isProfileLoading, error: profileError } = useDoc<User>(userDocRef);
 
-  const isLoading = isAuthLoading || (authUser && isProfileLoading);
-
-  // Emergency fallback for main admin if Firestore profile is missing or broken
-  const adminFallback: User | null = React.useMemo(() =>
-    !isProfileLoading && !userProfile && authUser?.email === 'admin1@skinsmith.com'
-      ? {
-        id: authUser.uid,
-        name: 'Main Admin (Recovered)',
-        email: authUser.email!,
-        avatarUrl: '',
-        role: 'Admin',
-        isAdmin: true,
-        isMainAdmin: true,
-      }
-      : null, [isProfileLoading, userProfile, authUser]);
+  const isLoading = isAuthLoading || (!!authUser && isProfileLoading);
 
   const user = React.useMemo(() => {
     if (!authUser) return null;
+
+    // Emergency fallback for main admin if Firestore profile is missing
+    const adminFallback: User | null =
+      !isProfileLoading && !userProfile && authUser.email === 'admin1@skinsmith.com'
+        ? {
+            id: authUser.uid,
+            name: 'Main Admin (Recovered)',
+            email: authUser.email!,
+            avatarUrl: '',
+            role: 'Admin',
+            isAdmin: true,
+            isMainAdmin: true,
+          }
+        : null;
 
     // Use current profile if it exists, otherwise use fallback
     let baseUser = userProfile || adminFallback;
@@ -54,26 +54,28 @@ export function useUser() {
       };
     }
 
-    // Determine avatar URL: 
+    // Determine avatar URL:
     // 1. Firestore avatarUrl (highest priority)
     // 2. Auth photoURL
     // 3. Fallback initials if needed (handled by UI components)
-    let avatarUrl = userProfile ? userProfile.avatarUrl : (authUser.photoURL || '');
+    const avatarUrl = userProfile ? userProfile.avatarUrl : (authUser.photoURL || '');
 
     return {
       ...baseUser,
       id: baseUser.id || authUser.uid,
       email: baseUser.email || authUser.email || '',
       name: baseUser.name || authUser.displayName || authUser.email?.split('@')[0] || 'User',
-      avatarUrl: avatarUrl,
+      avatarUrl,
       role: baseUser.role || 'Guest',
     };
-  }, [userProfile, adminFallback, authUser]);
+  }, [userProfile, authUser, isProfileLoading]);
+
+  const error = authError || profileError;
 
   return React.useMemo(() => ({
     user,
     authUser,
     isUserLoading: isLoading,
-    error: authError || profileError,
-  }), [user, authUser, isLoading, authError, profileError]);
+    error,
+  }), [user, authUser, isLoading, error]);
 }
