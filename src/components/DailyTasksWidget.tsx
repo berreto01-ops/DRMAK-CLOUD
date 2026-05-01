@@ -11,31 +11,33 @@ import Link from 'next/link';
 export function DailyTasksWidget() {
     const firestore = useFirestore();
     const { user } = useUser();
+    const userId = user?.id;
 
     // Fetch task templates
     const templateQuery = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
+        if (!firestore || !userId) return null;
         return query(
             collection(firestore, 'adminTaskTemplates'),
             orderBy('createdAt', 'desc')
         );
-    }, [firestore, user]);
+    }, [firestore, userId]);
     const { data: templates } = useCollection<any>(templateQuery);
 
-    // Fetch today's completions
-    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    // Fetch today's completions — todayStr stable per render of this widget;
+    // memoize so a remount doesn't churn refs unnecessarily.
+    const todayStr = React.useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
     const completionRef = useMemoFirebase(
-        () => (firestore && user ? doc(firestore, 'dailyTaskCompletions', `${user.id}_${todayStr}`) : null),
-        [firestore, user, todayStr]
+        () => (firestore && userId ? doc(firestore, 'dailyTaskCompletions', `${userId}_${todayStr}`) : null),
+        [firestore, userId, todayStr]
     );
     const { data: completionData } = useDoc<any>(completionRef);
     const completedTemplateIds: string[] = completionData?.completedTemplateIds || [];
 
     // Filter tasks assigned to user
     const userTasks = React.useMemo(() => {
-        if (!templates || !user) return [];
-        return templates.filter((t: any) => t.assignedTo === 'all' || t.assignedTo === user.id);
-    }, [templates, user]);
+        if (!templates || !userId) return [];
+        return templates.filter((t: any) => t.assignedTo === 'all' || t.assignedTo === userId);
+    }, [templates, userId]);
 
     const totalTasks = userTasks.length;
     const completedTasks = completedTemplateIds.length;
