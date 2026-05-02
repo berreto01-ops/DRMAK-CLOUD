@@ -103,7 +103,8 @@ import {
     orderBy,
     limit,
     doc,
-    setDoc
+    setDoc,
+    deleteDoc
 } from 'firebase/firestore';
 import type { Appointment, Patient, Doctor, BillingRecord, Lead, User, DailyPosting, SocialReport, AdminTaskTemplate, SocialReach, SocialSettings, DesignerWork, PharmacyItem, SocialCost, SocialROAS } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, useUser, useDoc } from '@/firebase';
@@ -1953,6 +1954,70 @@ const ReportsDashboard = () => {
     const [editingUser, setEditingUser] = React.useState<User | undefined>(undefined);
     const [isFormOpen, setIsFormOpen] = React.useState(false);
     const [userToDelete, setUserToDelete] = React.useState<User | null>(null);
+    const [taskToEdit, setTaskToEdit] = React.useState<any>(null);
+    const [taskToDelete, setTaskToDelete] = React.useState<any>(null);
+    const { user: currentUser } = useUser();
+    const [newTaskTitle, setNewTaskTitle] = React.useState('');
+    const [isAssigningTask, setIsAssigningTask] = React.useState(false);
+
+    const handleAssignTask = async (employeeId: string) => {
+        if (!newTaskTitle.trim() || !firestore || !currentUser) return;
+        setIsAssigningTask(true);
+        try {
+            const newTask = {
+                userId: employeeId,
+                task: newTaskTitle.trim(),
+                title: newTaskTitle.trim(),
+                status: 'Pending',
+                createdAt: Date.now(),
+                assignedBy: currentUser.id,
+                assignedByName: currentUser.name || currentUser.email,
+                type: 'Admin Assigned',
+                dueDate: format(new Date(), 'yyyy-MM-dd')
+            };
+            await addDocumentNonBlocking(collection(firestore, 'dailyTasks'), newTask);
+            toast({
+                title: 'Task Assigned',
+                description: 'New task has been assigned to the employee.'
+            });
+            setNewTaskTitle('');
+        } catch (e) {
+            console.error('Error assigning task:', e);
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Failed to assign task.'
+            });
+        } finally {
+            setIsAssigningTask(false);
+        }
+    };
+
+    const handleUpdateTask = async () => {
+        if (!taskToEdit || !firestore) return;
+        try {
+            await updateDocumentNonBlocking(doc(firestore, 'dailyTasks', taskToEdit.id), {
+                task: taskToEdit.title || taskToEdit.task,
+                title: taskToEdit.title || taskToEdit.task,
+                status: taskToEdit.status
+            });
+            toast({ title: 'Task Updated', description: 'The task has been successfully modified.' });
+            setTaskToEdit(null);
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to update task.' });
+        }
+    };
+
+    const handleDeleteTaskAction = async () => {
+        if (!taskToDelete || !firestore) return;
+        try {
+            await deleteDoc(doc(firestore, 'dailyTasks', taskToDelete.id));
+            toast({ title: 'Task Removed', description: 'The task has been permanently deleted.' });
+            setTaskToDelete(null);
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete task.' });
+        }
+    };
 
     const handleAddStaff = () => {
         setEditingUser(undefined);
@@ -2606,7 +2671,7 @@ const ReportsDashboard = () => {
                                                     // Get manual tasks
                                                     const manualTasks = (allDailyTasks || [])
                                                         .filter((t: any) => t.userId === emp.id)
-                                                        .map((t: any) => ({ ...t, type: 'Manual' }));
+                                                        .map((t: any) => ({ ...t, title: t.title || t.task, type: t.type || 'Manual' }));
                                                     
                                                     // Get recurring task completions
                                                     const recurringCompletions: any[] = [];
@@ -2632,56 +2697,212 @@ const ReportsDashboard = () => {
                                                     const combinedTasks = [...manualTasks, ...recurringCompletions]
                                                         .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-                                                    if (combinedTasks.length === 0) {
-                                                        return (
-                                                            <div className="text-center py-16 bg-slate-50 rounded-[2rem] border border-dashed border-slate-200">
-                                                                <ListTodo className="h-10 w-10 mx-auto mb-3 text-slate-300" />
-                                                                <p className="font-bold text-slate-400 uppercase tracking-widest text-[10px]">No tasks found for this user</p>
-                                                            </div>
-                                                        );
-                                                    }
-
                                                     return (
                                                         <div className="grid gap-4">
-                                                            {combinedTasks.map((task: any) => (
-                                                                <div key={task.id} className="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm hover:border-indigo-100 transition-all space-y-4">
+                                                            {/* Admin Task Assignment Section */}
+                                                            <div className="bg-slate-50 p-6 rounded-3xl border border-dashed border-slate-200 mb-2">
+                                                                <h4 className="font-black text-[10px] uppercase tracking-widest text-indigo-600 mb-4 flex items-center gap-2">
+                                                                    <PlusCircle className="h-4 w-4" /> Assign New Task
+                                                                </h4>
+                                                                <div className="flex gap-3">
+                                                                    <Input 
+                                                                        placeholder="Describe the task for this employee..." 
+                                                                        className="flex-1 bg-white rounded-xl border-slate-200 font-bold text-sm h-11"
+                                                                        value={newTaskTitle}
+                                                                        onChange={(e) => setNewTaskTitle(e.target.value)}
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Enter') {
+                                                                                e.preventDefault();
+                                                                                handleAssignTask(emp.id);
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                    <Button 
+                                                                        disabled={isAssigningTask || !newTaskTitle.trim()}
+                                                                        onClick={() => handleAssignTask(emp.id)}
+                                                                        className="rounded-xl px-6 bg-indigo-600 hover:bg-indigo-700 font-black text-[10px] uppercase tracking-widest h-11 shadow-lg shadow-indigo-100"
+                                                                    >
+                                                                        {isAssigningTask ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Assign Task'}
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+
+                                                            {combinedTasks.length === 0 ? (
+                                                                <div className="text-center py-16 bg-slate-50 rounded-[2rem] border border-dashed border-slate-200">
+                                                                    <ListTodo className="h-10 w-10 mx-auto mb-3 text-slate-300" />
+                                                                    <p className="font-bold text-slate-400 uppercase tracking-widest text-[10px]">No task history found</p>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="grid gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                                                                    {combinedTasks.map((task: any) => (
+                                                                <div key={task.id} className={cn(
+                                                                    "p-6 rounded-3xl transition-all duration-300 border space-y-4",
+                                                                    task.status === 'Completed' 
+                                                                        ? "bg-emerald-50/30 border-emerald-100 shadow-sm" 
+                                                                        : "bg-white border-slate-100 shadow-sm hover:border-indigo-100"
+                                                                )}>
                                                                     <div className="flex items-center justify-between">
                                                                         <div className="flex items-center gap-4">
-                                                                            <div className={`p-3 rounded-2xl ${task.status === 'Completed' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                                                                            <div className={cn(
+                                                                                "p-3 rounded-2xl",
+                                                                                task.status === 'Completed' ? "bg-emerald-100 text-emerald-600" : "bg-amber-100 text-amber-600"
+                                                                            )}>
                                                                                 {task.status === 'Completed' ? <UserCheck className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
                                                                             </div>
                                                                             <div>
                                                                                 <div className="flex items-center gap-2 mb-0.5">
-                                                                                    <p className="font-black text-slate-900 text-base">{task.title}</p>
-                                                                                    <Badge variant="outline" className="text-[8px] font-black uppercase tracking-tighter px-1.5 py-0 h-4 border-slate-200 text-slate-400">{task.type}</Badge>
+                                                                                    <p className={cn(
+                                                                                        "font-black text-base tracking-tight",
+                                                                                        task.status === 'Completed' ? "text-emerald-900" : "text-slate-900"
+                                                                                    )}>{task.title}</p>
+                                                                                    <Badge variant="outline" className={cn(
+                                                                                        "text-[8px] font-black uppercase tracking-tighter px-1.5 py-0 h-4",
+                                                                                        task.type === 'Admin Assigned' ? "bg-indigo-600 text-white border-none" : "border-slate-200 text-slate-400"
+                                                                                    )}>{task.type}</Badge>
                                                                                 </div>
-                                                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
-                                                                                    {task.type === 'Recurring' ? `Completed on: ${task.dueDate}` : `Due: ${task.dueDate ? format(new Date(task.dueDate), 'PPP') : 'No due date'}`}
-                                                                                </p>
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                                                                                        {task.type === 'Recurring' ? `Logged on: ${task.dueDate}` : `Assigned: ${task.createdAt ? format(new Date(task.createdAt), 'MMM dd, HH:mm') : 'N/A'}`}
+                                                                                    </p>
+                                                                                    {task.status === 'Completed' && task.completedAt && (
+                                                                                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-tight flex items-center gap-1">
+                                                                                            <CheckCircle2 className="h-3 w-3" /> Done at {format(new Date(task.completedAt), 'HH:mm')}
+                                                                                        </p>
+                                                                                    )}
+                                                                                </div>
                                                                             </div>
                                                                         </div>
-                                                                        <Badge variant={task.status === 'Completed' ? 'default' : 'secondary'} className={cn(
-                                                                            "rounded-xl font-black text-[9px] uppercase tracking-widest px-4 py-1.5",
-                                                                            task.status === 'Completed' ? "bg-emerald-50 text-emerald-600 border-none" : ""
-                                                                        )}>
-                                                                            {task.status}
-                                                                        </Badge>
+                                                                        <div className="flex items-center gap-3">
+                                                                            <Badge variant={task.status === 'Completed' ? 'default' : 'secondary'} className={cn(
+                                                                                "rounded-xl font-black text-[9px] uppercase tracking-widest px-4 py-1.5",
+                                                                                task.status === 'Completed' ? "bg-emerald-500 text-white border-none shadow-lg shadow-emerald-100" : ""
+                                                                            )}>
+                                                                                {task.status}
+                                                                            </Badge>
+                                                                            
+                                                                            {task.type !== 'Recurring' && (
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <Button 
+                                                                                        variant="ghost" 
+                                                                                        size="icon" 
+                                                                                        className="h-8 w-8 rounded-full hover:bg-indigo-50 hover:text-indigo-600"
+                                                                                        onClick={() => setTaskToEdit(task)}
+                                                                                    >
+                                                                                        <Edit3 className="h-3.5 w-3.5" />
+                                                                                    </Button>
+                                                                                    <Button 
+                                                                                        variant="ghost" 
+                                                                                        size="icon" 
+                                                                                        className="h-8 w-8 rounded-full hover:bg-rose-50 hover:text-rose-600"
+                                                                                        onClick={() => setTaskToDelete(task)}
+                                                                                    >
+                                                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                                                    </Button>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
                                                                     </div>
                                                                     
-                                                                    {task.remarks && (
-                                                                        <div className="ml-14 p-4 rounded-2xl bg-slate-50 border border-slate-100 relative">
-                                                                            <div className="absolute -top-2 left-4 px-2 bg-slate-50 text-[8px] font-black uppercase tracking-widest text-slate-400">Staff Remarks</div>
-                                                                            <p className="text-sm text-slate-600 font-bold leading-relaxed italic">
-                                                                                "{task.remarks}"
-                                                                            </p>
+                                                                    {(task.remarks || task.assignedByName || (task.status === 'Completed' && task.completedAt)) && (
+                                                                        <div className="ml-14 grid gap-3">
+                                                                            {task.assignedByName && (
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <Badge variant="secondary" className="bg-indigo-50 text-indigo-600 border-none font-black text-[8px] uppercase tracking-tighter h-4">
+                                                                                        Assigned by: {task.assignedByName}
+                                                                                    </Badge>
+                                                                                    {task.status === 'Completed' && (
+                                                                                        <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-none font-black text-[8px] uppercase tracking-tighter h-4">
+                                                                                            Result: Successful Completion
+                                                                                        </Badge>
+                                                                                    )}
+                                                                                </div>
+                                                                            )}
+                                                                            {task.remarks && (
+                                                                                <div className={cn(
+                                                                                    "p-4 rounded-2xl border relative",
+                                                                                    task.status === 'Completed' ? "bg-white border-emerald-100" : "bg-slate-50 border-slate-100"
+                                                                                )}>
+                                                                                    <div className="absolute -top-2 left-4 px-2 bg-inherit text-[8px] font-black uppercase tracking-widest text-slate-400">Staff Remarks</div>
+                                                                                    <p className={cn(
+                                                                                        "text-sm font-bold leading-relaxed italic",
+                                                                                        task.status === 'Completed' ? "text-emerald-700" : "text-slate-600"
+                                                                                    )}>
+                                                                                        "{task.remarks}"
+                                                                                    </p>
+                                                                                </div>
+                                                                            )}
                                                                         </div>
                                                                     )}
                                                                 </div>
                                                             ))}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     );
                                                 })()}
                                             </TabsContent>
+
+                                            {/* Edit Task Dialog */}
+                                            <Dialog open={!!taskToEdit} onOpenChange={(open) => !open && setTaskToEdit(null)}>
+                                                <DialogContent className="rounded-[2.5rem] border-none shadow-2xl p-8 max-w-md">
+                                                    <DialogHeader>
+                                                        <DialogTitle className="text-2xl font-black tracking-tight">Edit Task</DialogTitle>
+                                                        <DialogDescription className="font-bold text-slate-400 uppercase tracking-widest text-[10px]">Update task details and status</DialogDescription>
+                                                    </DialogHeader>
+                                                    <div className="space-y-6 mt-4">
+                                                        <div className="space-y-2">
+                                                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Task Title</Label>
+                                                            <Input 
+                                                                value={taskToEdit?.title || taskToEdit?.task || ''} 
+                                                                onChange={(e) => setTaskToEdit({ ...taskToEdit, title: e.target.value })}
+                                                                className="rounded-2xl h-12 font-bold text-sm"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current Status</Label>
+                                                            <Select 
+                                                                value={taskToEdit?.status} 
+                                                                onValueChange={(v) => setTaskToEdit({ ...taskToEdit, status: v })}
+                                                            >
+                                                                <SelectTrigger className="rounded-2xl h-12 font-bold">
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent className="rounded-xl border-none shadow-xl">
+                                                                    <SelectItem value="Pending" className="font-bold">Pending</SelectItem>
+                                                                    <SelectItem value="Completed" className="font-bold">Completed</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                        <Button 
+                                                            onClick={handleUpdateTask}
+                                                            className="w-full h-12 rounded-2xl bg-indigo-600 text-white font-black uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all"
+                                                        >
+                                                            Update Changes
+                                                        </Button>
+                                                    </div>
+                                                </DialogContent>
+                                            </Dialog>
+
+                                            {/* Delete Task Alert */}
+                                            <AlertDialog open={!!taskToDelete} onOpenChange={(open) => !open && setTaskToDelete(null)}>
+                                                <AlertDialogContent className="rounded-[2rem] border-none shadow-2xl">
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle className="text-2xl font-black tracking-tight">Remove this task?</AlertDialogTitle>
+                                                        <AlertDialogDescription className="font-bold text-slate-500">
+                                                            This will permanently delete the task: <span className="text-slate-900 font-black">"{taskToDelete?.title || taskToDelete?.task}"</span>. This action cannot be undone.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter className="gap-2">
+                                                        <AlertDialogCancel className="rounded-xl font-black uppercase tracking-widest text-[10px] border-slate-200">Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction 
+                                                            onClick={handleDeleteTaskAction}
+                                                            className="rounded-xl font-black uppercase tracking-widest text-[10px] bg-rose-600 text-white hover:bg-rose-700 shadow-lg shadow-rose-100"
+                                                        >
+                                                            Confirm Deletion
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
 
                                             <TabsContent value="reports" className="space-y-6">
                                                 {userReports.length === 0 ? (

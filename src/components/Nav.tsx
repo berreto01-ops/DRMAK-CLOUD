@@ -90,6 +90,7 @@ const allMenuItems: MenuItem[] = [
     { id: 'creativeBriefs', href: '/daily-tasks', label: 'Creative Briefs', icon: ListTodo },
     { id: 'designerPlanner', href: '/designer-planner', label: 'My Planner', icon: CalendarCheck },
     { id: 'creativeRequestHistory', href: '/creative-request-history', label: 'Requested Creatives', icon: Palette },
+    { id: 'adminTasks', href: '/admin-tasks', label: 'Tasks by Admin', icon: Shield },
 
     { id: 'printPrescription', href: '/print-prescription', label: 'Print Prescription', icon: Printer },
     { id: 'appointments', href: '/appointments', label: 'Appointments', icon: Calendar },
@@ -313,11 +314,11 @@ const NavContent = () => {
         if (userProfile?.role === 'Admin') {
             baseAccessIds = allMenuItems.filter(item => item.id !== 'userManagement' && item.id !== 'featureControl').map(i => i.id);
         } else if (userProfile?.role === 'Social Media Manager') {
-            baseAccessIds = ['dashboard', 'socialReporting', 'contentPlanner', 'socialInbox', 'reachTracker', 'leadAssignment', 'dailyPosting', 'aiTools', 'creativeRequestHistory'];
+            baseAccessIds = ['dashboard', 'socialReporting', 'contentPlanner', 'socialInbox', 'reachTracker', 'leadAssignment', 'dailyPosting', 'aiTools', 'creativeRequestHistory', 'adminTasks'];
         } else if (userProfile?.role === 'Designer') {
             // Designers and SMM now share the exact same unified platform planner.
             // Removed the private 'My Planner' to prevent data discrepancy.
-            baseAccessIds = ['designerWork', 'creativeBriefs', 'contentPlanner', 'socialInbox', 'dailyReporting', 'aiTools', 'creativeRequestHistory'];
+            baseAccessIds = ['designerWork', 'creativeBriefs', 'contentPlanner', 'socialInbox', 'dailyReporting', 'aiTools', 'creativeRequestHistory', 'adminTasks'];
         } else if (userProfile?.role === 'Sales') {
             baseAccessIds = ['salesDashboard', 'leads', 'leadAssignment', 'dailyReporting', 'dailyPosting', 'dailyTasks', 'dailyProgress', 'trainings_hub', 'aiTools'];
         } else if (userProfile?.role === 'Operations Manager') {
@@ -486,7 +487,7 @@ const NavContent = () => {
 
     if (userProfile?.role === 'Social Media Manager' || userProfile?.role === 'Designer') {
         const overviewIds = userProfile?.role === 'Designer' ? ['designerWork'] : ['dashboard'];
-        const toolIds = ['contentPlanner', 'dailyPosting', 'socialInbox', 'creativeRequestHistory', 'creativeBriefs'];
+        const toolIds = ['contentPlanner', 'dailyPosting', 'socialInbox', 'creativeRequestHistory', 'creativeBriefs', 'adminTasks'];
         const insightIds = ['socialReporting', 'reachTracker', 'leadAssignment', 'dailyReporting'];
 
         const overviewItems = allMenuItems.filter(item => overviewIds.includes(item.id));
