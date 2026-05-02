@@ -36,6 +36,7 @@ export interface PrescriptionPreviewProps {
   maritalStatus?: string;
   prescriptionTemplateUrl?: string;
   prescriptionAge?: string;
+  prescriptionGender?: string;
 }
 
 function safeFormatDate(dateStr: string) {
@@ -683,7 +684,7 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
             }}>
               <div style={{ height: '9mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm' }}>{p.patient?.name}</div>
               <div style={{ height: '19.5mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm' }}>{p.prescriptionAge ? `${p.prescriptionAge} Years` : ''}</div>
-              <div style={{ height: '20.5mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm' }}>{p.patient?.gender}</div>
+              <div style={{ height: '20.5mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm' }}>{p.prescriptionGender || p.patient?.gender}</div>
               <div style={{ height: '5mm' }}></div> 
               <div style={{ height: '15mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm' }}>{p.today}</div>
             </div>

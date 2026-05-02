@@ -85,6 +85,7 @@ export default function EPrescriptionPage() {
   const [coMorbids, setCoMorbids] = React.useState('');
   const [notes, setNotes] = React.useState('');
   const [prescriptionAge, setPrescriptionAge] = React.useState('');
+  const [prescriptionGender, setPrescriptionGender] = React.useState('');
   const [isSaving, setIsSaving] = React.useState(false);
   const [savedId, setSavedId] = React.useState<string | null>(null);
   const [printOnLetterhead, setPrintOnLetterhead] = React.useState(false);
@@ -107,6 +108,7 @@ export default function EPrescriptionPage() {
     setCoMorbids('');
     setNotes('');
     setPrescriptionAge('');
+    setPrescriptionGender('');
     setSavedId(null);
   };
 
@@ -131,6 +133,7 @@ export default function EPrescriptionPage() {
     setFollowUpDates(rx.followUp || []);
     setAllergies(rx.allergies || '');
     setCoMorbids(rx.coMorbids || '');
+    setPrescriptionGender(rx.prescriptionGender || rx.patient?.gender || '');
     setNotes(rx.notes || '');
     toast({ title: 'Prescription Loaded', description: 'Data has been pre-filled from history.' });
   };
@@ -203,6 +206,7 @@ export default function EPrescriptionPage() {
         coMorbids,
         notes,
         prescriptionAge: prescriptionAge || selectedPatient.age || '',
+        prescriptionGender: prescriptionGender || selectedPatient.gender || '',
         createdAt: new Date().toISOString(),
       });
       setSavedId(docRef.id);
@@ -258,7 +262,8 @@ export default function EPrescriptionPage() {
     hideBranding: printOnLetterhead,
     maritalStatus: selectedPatient?.maritalStatus,
     prescriptionTemplateUrl: (linkedDoctor?.useCustomPrescription && !printOnLetterhead) ? linkedDoctor.prescriptionTemplateUrl : undefined,
-    prescriptionAge: prescriptionAge || selectedPatient?.age?.toString()
+    prescriptionAge: prescriptionAge || selectedPatient?.age?.toString(),
+    prescriptionGender: prescriptionGender || selectedPatient?.gender
   };
 
   return (
@@ -385,7 +390,20 @@ export default function EPrescriptionPage() {
                           onChange={e => setPrescriptionAge(e.target.value)} 
                         />
                       </div>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => { setSelectedPatient(null); setPrescriptionAge(''); }}>
+                      <div className="flex flex-col gap-1">
+                        <Label className="text-[10px] font-bold text-primary uppercase tracking-wider">Gender</Label>
+                        <Select value={prescriptionGender || selectedPatient.gender || ''} onValueChange={setPrescriptionGender}>
+                          <SelectTrigger className="w-24 h-9 text-xs font-bold bg-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Male">Male</SelectItem>
+                            <SelectItem value="Female">Female</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => { setSelectedPatient(null); setPrescriptionAge(''); setPrescriptionGender(''); }}>
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
