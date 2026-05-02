@@ -18,7 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, PlusCircle, Trash2, ListTodo, CheckCircle2, Circle } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, ListTodo, CheckCircle2, Circle, Pencil, Save } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useUser, useDoc } from '@/firebase';
 import type { DailyTask } from '@/lib/types';
 import { collection, query, where, doc, orderBy, setDoc } from 'firebase/firestore';
