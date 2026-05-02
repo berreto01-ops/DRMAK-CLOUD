@@ -23,6 +23,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DateRange } from 'react-day-picker';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { 
   format, 
   startOfMonth, 
@@ -68,6 +75,7 @@ import {
   Lock,
   RotateCcw,
   Coins,
+  History,
 } from 'lucide-react';
 import {
   collection,
@@ -78,7 +86,7 @@ import {
   doc,
   setDoc
 } from 'firebase/firestore';
-import type { BillingRecord, Patient, Doctor, Supplier, SocialCost, SocialROAS } from '@/lib/types';
+import type { BillingRecord, Patient, Doctor, Supplier, SocialCost, SocialROAS, VendorTransaction } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { DatePickerWithRange } from '@/components/DatePickerWithRange';
 import {
@@ -128,6 +136,7 @@ export default function FinancialReportPage() {
   const salariesQuery = useMemoFirebase(() => firestore ? collection(firestore, 'salaries') : null, [firestore]);
   const socialCostsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'socialCosts') : null, [firestore]);
   const socialRoasQuery = useMemoFirebase(() => firestore ? collection(firestore, 'socialROAS') : null, [firestore]);
+  const vendorTransactionsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'vendorTransactions') : null, [firestore]);
 
   const { data: billingRecords } = useCollection<BillingRecord>(billingQuery);
   const { data: patients } = useCollection<Patient>(patientsQuery);
@@ -137,6 +146,14 @@ export default function FinancialReportPage() {
   const { data: allSalaries } = useCollection<any>(salariesQuery);
   const { data: allSocialCosts } = useCollection<SocialCost>(socialCostsQuery);
   const { data: allSocialROAS } = useCollection<SocialROAS>(socialRoasQuery);
+  const { data: allVendorTransactions } = useCollection<VendorTransaction>(vendorTransactionsQuery);
+
+  const [historyDialogOpen, setHistoryDialogOpen] = React.useState(false);
+  const [selectedSupplier, setSelectedSupplier] = React.useState<Supplier | null>(null);
+  const [historyRange, setHistoryRange] = React.useState<DateRange | undefined>({
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date()),
+  });
 
   // Derived Financial State
   const filteredBilling = React.useMemo(() => {
@@ -797,8 +814,16 @@ export default function FinancialReportPage() {
                                                     </div>
                                                 </div>
                                                 <div className="mt-6 flex items-center gap-3">
-                                                    <Button variant="outline" className="flex-1 h-12 rounded-xl font-black text-sm hover:bg-white border-slate-200">View Ledger</Button>
-                                                    <Button className="flex-1 h-12 rounded-xl font-black text-sm bg-slate-900 hover:bg-black">Process Payment</Button>
+                                                    <Button 
+                                                        variant="outline" 
+                                                        className="flex-1 h-12 rounded-xl font-black text-sm hover:bg-white border-slate-200"
+                                                        onClick={() => {
+                                                            setSelectedSupplier(supplier);
+                                                            setHistoryDialogOpen(true);
+                                                        }}
+                                                    >
+                                                        View History
+                                                    </Button>
                                                 </div>
                                             </CardContent>
                                         </Card>
@@ -1215,6 +1240,125 @@ export default function FinancialReportPage() {
                     </Tabs>
                 </CardContent>
             </Card>
+      {/* Vendor History Dialog */}
+      <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
+          <DialogContent className="sm:max-w-[700px] p-0 overflow-hidden rounded-[2rem] border-none shadow-2xl">
+              <div className="bg-slate-900 p-8 text-white">
+                  <DialogHeader>
+                      <DialogTitle className="text-2xl font-black flex items-center gap-3">
+                          <div className="p-2 bg-indigo-600 rounded-xl">
+                              <History className="h-6 w-6 text-white" />
+                          </div>
+                          {selectedSupplier?.name} <span className="text-indigo-400">History</span>
+                      </DialogTitle>
+                      <DialogDescription className="text-slate-400 font-medium">
+                          Complete transaction record and ledger audit.
+                      </DialogDescription>
+                  </DialogHeader>
+              </div>
+
+              <div className="p-8 max-h-[60vh] overflow-y-auto">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                      <div className="space-y-1">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filter Audit Window</p>
+                          <DatePickerWithRange 
+                              date={historyRange} 
+                              setDate={setHistoryRange} 
+                              className="bg-white rounded-xl shadow-sm border-slate-100" 
+                          />
+                      </div>
+                      <div className="text-right">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Transactions Found</p>
+                          <p className="text-xl font-black text-slate-900">
+                              {allVendorTransactions?.filter(t => {
+                                  if (t.supplierId !== selectedSupplier?.id) return false;
+                                  const txDate = startOfDay(new Date(t.date));
+                                  return isWithinInterval(txDate, {
+                                      start: startOfDay(historyRange?.from || new Date()),
+                                      end: endOfDay(historyRange?.to || historyRange?.from || new Date())
+                                  });
+                              }).length || 0}
+                          </p>
+                      </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-100 overflow-hidden">
+                      <Table>
+                          <TableHeader className="bg-slate-50">
+                              <TableRow className="border-slate-100 h-12">
+                                  <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest">Date</TableHead>
+                                  <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest">Type</TableHead>
+                                  <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest">Reference</TableHead>
+                                  <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest text-right">Amount</TableHead>
+                              </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                              {allVendorTransactions && allVendorTransactions.filter(t => {
+                                  if (t.supplierId !== selectedSupplier?.id) return false;
+                                  const txDate = startOfDay(new Date(t.date));
+                                  return isWithinInterval(txDate, {
+                                      start: startOfDay(historyRange?.from || new Date()),
+                                      end: endOfDay(historyRange?.to || historyRange?.from || new Date())
+                                  });
+                              }).length > 0 ? (
+                                  allVendorTransactions
+                                      .filter(t => {
+                                          if (t.supplierId !== selectedSupplier?.id) return false;
+                                          const txDate = startOfDay(new Date(t.date));
+                                          return isWithinInterval(txDate, {
+                                              start: startOfDay(historyRange?.from || new Date()),
+                                              end: endOfDay(historyRange?.to || historyRange?.from || new Date())
+                                          });
+                                      })
+                                      .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                                      .map((tx, i) => (
+                                          <TableRow key={i} className="border-slate-50 h-14">
+                                              <TableCell className="font-bold text-slate-600 text-xs">{tx.date}</TableCell>
+                                              <TableCell>
+                                                  <Badge variant="outline" className={cn(
+                                                      "text-[10px] font-black uppercase px-2 py-0",
+                                                      tx.type === 'Bill' ? "text-amber-600 border-amber-200 bg-amber-50" : "text-emerald-600 border-emerald-200 bg-emerald-50"
+                                                  )}>
+                                                      {tx.type}
+                                                  </Badge>
+                                              </TableCell>
+                                              <TableCell className="text-[10px] font-bold text-slate-400">{tx.reference || '-'}</TableCell>
+                                              <TableCell className={cn(
+                                                  "text-right font-black",
+                                                  tx.type === 'Bill' ? "text-amber-600" : "text-emerald-600"
+                                              )}>
+                                                  {tx.type === 'Bill' ? '+' : '-'} Rs {tx.amount.toLocaleString()}
+                                              </TableCell>
+                                          </TableRow>
+                                      ))
+                              ) : (
+                                  <TableRow>
+                                      <TableCell colSpan={4} className="h-32 text-center text-slate-400 font-bold uppercase text-[10px] tracking-widest opacity-50">
+                                          No transactions found for this vendor
+                                      </TableCell>
+                                  </TableRow>
+                              )}
+                          </TableBody>
+                      </Table>
+                  </div>
+              </div>
+              
+              <div className="p-8 bg-slate-50 flex items-center justify-between border-t border-slate-100">
+                  <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Current Ledger Balance</p>
+                      <p className={cn(
+                          "text-2xl font-black",
+                          (selectedSupplier?.currentBalance || 0) > 0 ? "text-rose-600" : "text-emerald-600"
+                      )}>
+                          Rs {(selectedSupplier?.currentBalance || 0).toLocaleString()}
+                      </p>
+                  </div>
+                  <Button onClick={() => setHistoryDialogOpen(false)} className="rounded-xl h-12 px-8 font-black bg-slate-900 hover:bg-black shadow-lg shadow-slate-200">
+                      Close History
+                  </Button>
+              </div>
+          </DialogContent>
+      </Dialog>
         </div>
     );
 }

@@ -74,7 +74,7 @@ import {
     Factory,
     Activity,
 } from 'lucide-react';
-import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import type { Supplier, SupplierProduct, SupplierType } from '@/lib/types';
@@ -107,6 +107,7 @@ const emptyForm = (): Omit<Supplier, 'id' | 'createdAt'> => ({
 });
 
 export default function SupplierPage() {
+    const { user } = useUser();
     const { toast } = useToast();
     const firestore = useFirestore();
 
@@ -128,6 +129,25 @@ export default function SupplierPage() {
     const [editingSupplier, setEditingSupplier] = React.useState<Supplier | null>(null);
     const [formData, setFormData] = React.useState(emptyForm());
     const [isSaving, setIsSaving] = React.useState(false);
+    
+    // Vendor Payments State
+    const [txDialogOpen, setTxDialogOpen] = React.useState(false);
+    const [editingTransaction, setEditingTransaction] = React.useState<VendorTransaction | null>(null);
+    const [txFormData, setTxFormData] = React.useState<Omit<VendorTransaction, 'id' | 'createdAt'>>({
+        supplierId: '',
+        supplierName: '',
+        type: 'Bill',
+        amount: 0,
+        date: new Date().toISOString().split('T')[0],
+        reference: '',
+        notes: '',
+        addedBy: '',
+    });
+    const transactionsRef = useMemoFirebase(
+        () => (firestore ? collection(firestore, 'vendorTransactions') : null),
+        [firestore]
+    );
+    const { data: transactions } = useCollection<VendorTransaction>(transactionsRef);
 
     // Delete confirmation
     const [deleteTarget, setDeleteTarget] = React.useState<Supplier | null>(null);
@@ -283,6 +303,93 @@ export default function SupplierPage() {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
+    const handleLogTransaction = async () => {
+        if (!firestore || !transactionsRef) return;
+        if (!txFormData.supplierId || txFormData.amount <= 0) {
+            toast({ variant: 'destructive', title: 'Validation Error', description: 'Select a supplier and enter a valid amount.' });
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            if (editingTransaction) {
+                // 1. Revert Old Balance
+                const supplierRef = doc(firestore, 'suppliers', editingTransaction.supplierId);
+                const supplier = suppliers?.find(s => s.id === editingTransaction.supplierId);
+                if (supplier) {
+                    const oldBalance = (supplier.currentBalance || 0);
+                    const oldAdjustment = editingTransaction.type === 'Bill' ? Number(editingTransaction.amount) : -Number(editingTransaction.amount);
+                    await updateDocumentNonBlocking(supplierRef, {
+                        currentBalance: oldBalance - oldAdjustment
+                    });
+                }
+
+                // 2. Update Transaction record
+                await updateDocumentNonBlocking(doc(firestore, 'vendorTransactions', editingTransaction.id), {
+                    ...txFormData,
+                    amount: Number(txFormData.amount),
+                });
+
+                // 3. Apply New Balance (will be handled by fetch/re-render but better do it explicitly if needed, 
+                // but since we updated the supplier doc above, we need to fetch the LATEST balance now)
+                // Actually, let's just use the logic below to apply the new one.
+            } else {
+                // 1. Add Transaction record
+                await addDocumentNonBlocking(transactionsRef, {
+                    ...txFormData,
+                    amount: Number(txFormData.amount),
+                    createdAt: new Date().toISOString(),
+                });
+            }
+
+            // Apply New Balance (for both edit and create)
+            const targetSupplierRef = doc(firestore, 'suppliers', txFormData.supplierId);
+            // We need the MOST RECENT balance from the doc because we might have just reverted it
+            // For simplicity in this non-blocking environment, we rely on the state being somewhat consistent
+            // or we use the local calculation.
+            const supplier = suppliers?.find(s => s.id === txFormData.supplierId);
+            if (supplier) {
+                const baseBalance = editingTransaction ? (supplier.currentBalance || 0) - (editingTransaction.type === 'Bill' ? editingTransaction.amount : -editingTransaction.amount) : (supplier.currentBalance || 0);
+                const newAdjustment = txFormData.type === 'Bill' ? Number(txFormData.amount) : -Number(txFormData.amount);
+                await updateDocumentNonBlocking(targetSupplierRef, {
+                    currentBalance: baseBalance + newAdjustment
+                });
+            }
+
+            toast({ title: editingTransaction ? 'Transaction Updated' : 'Transaction Recorded', description: `PKR ${txFormData.amount.toLocaleString()} ${txFormData.type} processed.` });
+            setTxDialogOpen(false);
+            setEditingTransaction(null);
+        } catch (error) {
+            console.error("Log Transaction Error:", error);
+            toast({ variant: 'destructive', title: 'Operation Failed' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDeleteTransaction = async (tx: VendorTransaction) => {
+        if (!firestore) return;
+        try {
+            // 1. Revert Balance
+            const supplierRef = doc(firestore, 'suppliers', tx.supplierId);
+            const supplier = suppliers?.find(s => s.id === tx.supplierId);
+            if (supplier) {
+                const currentBalance = (supplier.currentBalance || 0);
+                const adjustment = tx.type === 'Bill' ? Number(tx.amount) : -Number(tx.amount);
+                await updateDocumentNonBlocking(supplierRef, {
+                    currentBalance: currentBalance - adjustment
+                });
+            }
+
+            // 2. Delete record
+            await deleteDocumentNonBlocking(doc(firestore, 'vendorTransactions', tx.id));
+            toast({ title: 'Transaction Deleted', description: 'The ledger has been adjusted accordingly.' });
+        } catch (error) {
+            console.error("Delete Transaction Error:", error);
+            toast({ variant: 'destructive', title: 'Deletion Failed' });
+        }
+    };
+
     const addProduct = () => {
         setFormData(prev => ({
             ...prev,
@@ -403,11 +510,11 @@ export default function SupplierPage() {
                                             {supplier.type === 'Vendor' ? 'Product-to-Product' : 'Bill-to-Bill'}
                                         </span>
                                     </div>
-                                    {supplier.type === 'Distributor' && supplier.currentBalance !== undefined && (
+                                    {(supplier.currentBalance !== undefined || (supplier as any).balance !== undefined) && (
                                         <div className="text-[10px] text-muted-foreground flex items-center gap-1">
                                             <DollarSign className="h-2.5 w-2.5" />
-                                            Balance: <span className={cn(supplier.currentBalance > 0 ? "text-red-500 font-bold" : "text-green-600 font-bold")}>
-                                                PKR {supplier.currentBalance.toLocaleString()}
+                                            Balance: <span className={cn((supplier.currentBalance || 0) > 0 ? "text-red-500 font-bold" : "text-green-600 font-bold")}>
+                                                PKR {(supplier.currentBalance || 0).toLocaleString()}
                                             </span>
                                         </div>
                                     )}
@@ -588,6 +695,9 @@ export default function SupplierPage() {
                                 <TabsTrigger value="Distributor" className="rounded-lg px-6 font-bold flex items-center gap-2 data-[state=active]:bg-emerald-600 data-[state=active]:text-white transition-colors">
                                     <Truck className="h-4 w-4" /> Distributors (Pharmacy)
                                 </TabsTrigger>
+                                <TabsTrigger value="Payments" className="rounded-lg px-6 font-bold flex items-center gap-2 data-[state=active]:bg-amber-600 data-[state=active]:text-white transition-colors">
+                                    <DollarSign className="h-4 w-4" /> Vendor Payments
+                                </TabsTrigger>
                             </TabsList>
                         </div>
                         <TabsContent value="all" className="m-0 focus-visible:outline-none">
@@ -598,6 +708,100 @@ export default function SupplierPage() {
                         </TabsContent>
                         <TabsContent value="Distributor" className="m-0 focus-visible:outline-none">
                             {renderSupplierTable(filteredSuppliers.filter(s => s.type === 'Distributor'))}
+                        </TabsContent>
+                        <TabsContent value="Payments" className="m-0 focus-visible:outline-none">
+                            <div className="p-6 space-y-6">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-lg font-bold">Recent Transactions</h3>
+                                    <Button onClick={() => {
+                                        setTxFormData({
+                                            supplierId: '',
+                                            supplierName: '',
+                                            type: 'Bill',
+                                            amount: 0,
+                                            date: new Date().toISOString().split('T')[0],
+                                            reference: '',
+                                            notes: '',
+                                            addedBy: user?.name || 'Operations Manager',
+                                        });
+                                        setTxDialogOpen(true);
+                                    }} className="bg-amber-600 hover:bg-amber-700 rounded-xl">
+                                        <PlusCircle className="mr-2 h-4 w-4" /> Log Transaction
+                                    </Button>
+                                </div>
+                                <div className="border rounded-2xl overflow-hidden">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow className="bg-muted/50">
+                                                <TableHead>Date</TableHead>
+                                                <TableHead>Supplier</TableHead>
+                                                <TableHead>Type</TableHead>
+                                                <TableHead>Reference</TableHead>
+                                                <TableHead className="text-right">Amount</TableHead>
+                                                <TableHead>Logged By</TableHead>
+                                                <TableHead className="text-right">Actions</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {transactions && transactions.length > 0 ? (
+                                                transactions.slice().sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(tx => (
+                                                    <TableRow key={tx.id} className="group hover:bg-muted/30 transition-colors">
+                                                        <TableCell className="font-medium text-xs">{tx.date}</TableCell>
+                                                        <TableCell className="font-bold">{tx.supplierName}</TableCell>
+                                                        <TableCell>
+                                                            <Badge variant="outline" className={tx.type === 'Bill' ? "text-amber-600 border-amber-200 bg-amber-50" : "text-emerald-600 border-emerald-200 bg-emerald-50"}>
+                                                                {tx.type}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell className="text-xs text-muted-foreground">{tx.reference || '-'}</TableCell>
+                                                        <TableCell className={cn("text-right font-black", tx.type === 'Bill' ? "text-amber-600" : "text-emerald-600")}>
+                                                            {tx.type === 'Bill' ? '+' : '-'} PKR {tx.amount.toLocaleString()}
+                                                        </TableCell>
+                                                        <TableCell className="text-[10px] text-muted-foreground font-medium uppercase">{tx.addedBy}</TableCell>
+                                                        <TableCell className="text-right">
+                                                            <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <Button 
+                                                                    variant="ghost" 
+                                                                    size="icon" 
+                                                                    className="h-8 w-8 rounded-lg hover:bg-amber-100 hover:text-amber-600"
+                                                                    onClick={() => {
+                                                                        setEditingTransaction(tx);
+                                                                        setTxFormData({
+                                                                            supplierId: tx.supplierId,
+                                                                            supplierName: tx.supplierName,
+                                                                            type: tx.type,
+                                                                            amount: tx.amount,
+                                                                            date: tx.date,
+                                                                            reference: tx.reference || '',
+                                                                            notes: tx.notes || '',
+                                                                            addedBy: tx.addedBy,
+                                                                        });
+                                                                        setTxDialogOpen(true);
+                                                                    }}
+                                                                >
+                                                                    <Pencil className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                                <Button 
+                                                                    variant="ghost" 
+                                                                    size="icon" 
+                                                                    className="h-8 w-8 rounded-lg hover:bg-rose-100 hover:text-rose-600"
+                                                                    onClick={() => handleDeleteTransaction(tx)}
+                                                                >
+                                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))
+                                            ) : (
+                                                <TableRow>
+                                                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">No transactions logged yet.</TableCell>
+                                                </TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </div>
                         </TabsContent>
                     </Tabs>
                 </CardContent>
@@ -987,6 +1191,113 @@ export default function SupplierPage() {
                         </Button>
                         <Button variant="destructive" onClick={handleDelete} className="h-14 flex-1 gap-2 rounded-2xl shadow-xl shadow-red-500/20 hover:shadow-red-500/40 transition-all text-lg font-black">
                             Liquidate Partner
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            {/* Vendor Transaction Dialog */}
+            <Dialog open={txDialogOpen} onOpenChange={setTxDialogOpen}>
+                <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
+                    <div className="bg-amber-600 p-8 text-white">
+                        <DialogHeader>
+                            <DialogTitle className="text-2xl font-black flex items-center gap-2">
+                                <DollarSign className="h-6 w-6" /> {editingTransaction ? 'Edit Transaction' : 'Log Vendor Payment / Bill'}
+                            </DialogTitle>
+                            <DialogDescription className="text-amber-100 font-medium">
+                                {editingTransaction ? `Modify transaction details for ${editingTransaction.supplierName}.` : 'Record financial transactions for ledger maintenance.'}
+                            </DialogDescription>
+                        </DialogHeader>
+                    </div>
+                    
+                    <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Select Supplier</Label>
+                            <Select 
+                                value={txFormData.supplierId} 
+                                onValueChange={(val) => {
+                                    const s = suppliers?.find(sup => sup.id === val);
+                                    setTxFormData(prev => ({ ...prev, supplierId: val, supplierName: s?.name || '' }));
+                                }}
+                            >
+                                <SelectTrigger className="h-12 rounded-xl bg-muted/20 border-none font-bold">
+                                    <SelectValue placeholder="Choose a partner..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {suppliers?.filter(s => s.status === 'Active').map(s => (
+                                        <SelectItem key={s.id} value={s.id} className="font-bold">{s.name} ({s.type})</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Type</Label>
+                                <Select 
+                                    value={txFormData.type} 
+                                    onValueChange={(val: any) => setTxFormData(prev => ({ ...prev, type: val }))}
+                                >
+                                    <SelectTrigger className="h-12 rounded-xl bg-muted/20 border-none font-bold">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Bill" className="font-bold text-amber-600">Bill (+ Debt)</SelectItem>
+                                        <SelectItem value="Payment" className="font-bold text-emerald-600">Payment (- Debt)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Date</Label>
+                                <Input 
+                                    type="date"
+                                    className="h-12 rounded-xl bg-muted/20 border-none font-bold"
+                                    value={txFormData.date}
+                                    onChange={e => setTxFormData(prev => ({ ...prev, date: e.target.value }))}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Amount (PKR)</Label>
+                            <Input 
+                                type="number"
+                                placeholder="0"
+                                className="h-14 rounded-2xl border-2 border-amber-100 bg-amber-50/30 text-xl font-black text-amber-700 focus-visible:ring-amber-500"
+                                value={txFormData.amount || ''}
+                                onChange={e => setTxFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Reference / Bill #</Label>
+                            <Input 
+                                placeholder="Optional reference info..."
+                                className="h-12 rounded-xl bg-muted/20 border-none font-bold"
+                                value={txFormData.reference}
+                                onChange={e => setTxFormData(prev => ({ ...prev, reference: e.target.value }))}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Notes</Label>
+                            <Textarea 
+                                placeholder="Add any internal details..."
+                                className="rounded-xl bg-muted/20 border-none resize-none h-20"
+                                value={txFormData.notes}
+                                onChange={e => setTxFormData(prev => ({ ...prev, notes: e.target.value }))}
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter className="p-8 bg-muted/10 border-t flex flex-row gap-3 sm:justify-end">
+                        <Button variant="ghost" onClick={() => { setTxDialogOpen(false); setEditingTransaction(null); }} className="rounded-xl font-bold">Cancel</Button>
+                        <Button 
+                            onClick={handleLogTransaction} 
+                            disabled={isSaving}
+                            className="rounded-xl font-bold bg-amber-600 hover:bg-amber-700 h-12 px-8 shadow-lg shadow-amber-600/20"
+                        >
+                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                            {editingTransaction ? 'Update Transaction' : 'Log Transaction'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

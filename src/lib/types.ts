@@ -502,3 +502,16 @@ export type SocialROAS = {
   updatedAt: string; // ISO string
   updatedBy: string; // User ID
 };
+
+export type VendorTransaction = {
+  id: string;
+  supplierId: string;
+  supplierName: string;
+  type: 'Bill' | 'Payment';
+  amount: number;
+  date: string;
+  reference?: string; // Bill Number or Payment Ref
+  notes?: string;
+  addedBy: string;
+  createdAt: string;
+};

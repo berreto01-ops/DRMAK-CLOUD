@@ -145,13 +145,17 @@ const DetailDialog = ({ open, onOpenChange, request, user, onOpenSubmit }: {
                 {(user?.role === 'Designer' || user?.role === 'Admin') && request.status !== 'Approved' && (
                     <DialogFooter>
                         <Button
-                            className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                            className={cn(
+                                "w-full text-white font-bold h-12 rounded-xl",
+                                request.status === 'Submitted' ? "bg-slate-700 hover:bg-slate-800" : "bg-purple-600 hover:bg-purple-700"
+                            )}
                             onClick={() => {
                                 onOpenSubmit(request.id, request.submissionUrl || '');
                                 onOpenChange(false);
                             }}
                         >
-                            <Palette className="mr-2 h-4 w-4" /> Submit Design
+                            <Palette className="mr-2 h-4 w-4" /> 
+                            {request.status === 'Submitted' ? 'Submitted (Update)' : 'Submit Design'}
                         </Button>
                     </DialogFooter>
                 )}
@@ -382,10 +386,15 @@ export default function CreativeRequestHistoryPage() {
                             {(user?.role === 'Designer' || user?.role === 'Admin') && r.status !== 'Approved' && (
                                 <Button 
                                     size="sm" 
-                                    className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-black text-[10px] h-9 rounded-xl shadow-lg shadow-slate-200"
+                                    className={cn(
+                                        "flex-1 font-black text-[10px] h-9 rounded-xl shadow-lg transition-all",
+                                        r.status === 'Submitted' 
+                                            ? "bg-slate-600 hover:bg-slate-700 text-white shadow-slate-100" 
+                                            : "bg-slate-900 hover:bg-slate-800 text-white shadow-slate-200"
+                                    )}
                                     onClick={() => { setSubmitRequestId(r.id); setSubmissionUrl(r.submissionUrl || ''); }}
                                 >
-                                    <Palette className="mr-1.5 h-3.5 w-3.5" /> SUBMIT
+                                    <Palette className="mr-1.5 h-3.5 w-3.5" /> {r.status === 'Submitted' ? 'SUBMITTED' : 'SUBMIT'}
                                 </Button>
                             )}
 
