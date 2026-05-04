@@ -42,7 +42,8 @@ import {
     UserPlus,
     MoreVertical,
     Settings2,
-    Coins
+    Coins,
+    Printer
 } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -883,6 +884,7 @@ const AdminDailyIntelligence = ({
     allExpenses,
     appointments,
     patients,
+    prescriptions,
     selectedDate,
     periodMode,
     dateRange,
@@ -891,6 +893,7 @@ const AdminDailyIntelligence = ({
     allExpenses: any[];
     appointments: (Appointment & { id: string })[];
     patients: (Patient & { id: string })[];
+    prescriptions: any[];
     selectedDate?: Date;
     periodMode?: 'day' | 'month' | 'year';
     dateRange?: DateRange;
@@ -898,6 +901,7 @@ const AdminDailyIntelligence = ({
     const [showPatients, setShowPatients] = React.useState(false);
     const [showPurchases, setShowPurchases] = React.useState(false);
     const [showExpenses, setShowExpenses] = React.useState(false);
+    const [showPrescriptions, setShowPrescriptions] = React.useState(false);
 
     const patientsMap = React.useMemo(() => new Map(patients.map(p => [p.mobileNumber, p])), [patients]);
 
@@ -964,6 +968,14 @@ const AdminDailyIntelligence = ({
     }, [allExpenses, dateFilter]);
 
     const totalExpenses = todayExpenses.reduce((acc, e) => acc + e.amount, 0);
+
+    // Pending Prescriptions
+    const pendingPrescriptions = React.useMemo(() => {
+        return (prescriptions || []).filter(p => p.printStatus === 'Pending').map(p => ({
+            ...p,
+            time: p.createdAt ? format(new Date(p.createdAt), 'h:mm a') : 'N/A'
+        }));
+    }, [prescriptions]);
 
     return (
         <>
@@ -1038,6 +1050,31 @@ const AdminDailyIntelligence = ({
                         </div>
                         <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-rose-500 group-hover:text-rose-700 transition-colors">
                             <span>Click to view expenses</span>
+                            <ArrowRight className="h-3 w-3" />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Pending Prescriptions */}
+                <Card
+                    className="border-none bg-gradient-to-br from-indigo-50 to-purple-50/50 shadow-xl shadow-indigo-100/20 rounded-[2rem] overflow-hidden group hover:scale-[1.02] transition-all border border-indigo-100/30 cursor-pointer"
+                    onClick={() => setShowPrescriptions(true)}
+                >
+                    <CardContent className="p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="p-3 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-200"><Printer className="h-5 w-5" /></div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600/60 leading-none">Print Queue</span>
+                        </div>
+                        <div className="space-y-1">
+                            <div className="text-3xl font-black tracking-tighter text-slate-900 leading-none">
+                                {pendingPrescriptions.length}
+                            </div>
+                            <p className="text-[10px] font-bold text-indigo-600/80 uppercase tracking-tighter">
+                                Pending Prescriptions
+                            </p>
+                        </div>
+                        <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-indigo-500 group-hover:text-indigo-700 transition-colors">
+                            <span>Click to show prescriptions</span>
                             <ArrowRight className="h-3 w-3" />
                         </div>
                     </CardContent>
@@ -1223,6 +1260,66 @@ const AdminDailyIntelligence = ({
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* ── Prescriptions Detail Dialog ── */}
+            <Dialog open={showPrescriptions} onOpenChange={setShowPrescriptions}>
+                <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Printer className="h-5 w-5 text-indigo-600" />
+                            Pending Print Queue
+                        </DialogTitle>
+                        <DialogDescription>
+                            {pendingPrescriptions.length} prescriptions waiting to be printed.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="mt-4">
+                        {pendingPrescriptions.length === 0 ? (
+                            <div className="text-center py-12 text-muted-foreground">
+                                <Printer className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                                <p className="text-sm">Queue is empty. Great job!</p>
+                            </div>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="font-black text-xs uppercase">#</TableHead>
+                                        <TableHead className="font-black text-xs uppercase">Patient</TableHead>
+                                        <TableHead className="font-black text-xs uppercase">Doctor</TableHead>
+                                        <TableHead className="font-black text-xs uppercase">Time</TableHead>
+                                        <TableHead className="font-black text-xs uppercase text-right">Action</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {pendingPrescriptions.map((p, i) => (
+                                        <TableRow key={p.id} className="hover:bg-slate-50 transition-colors">
+                                            <TableCell className="font-bold text-slate-400">{i + 1}</TableCell>
+                                            <TableCell>
+                                                <div className="font-semibold">{p.patientName}</div>
+                                                <div className="text-[10px] text-muted-foreground">{p.patientMobile}</div>
+                                            </TableCell>
+                                            <TableCell className="text-xs font-medium">{p.doctorName}</TableCell>
+                                            <TableCell className="text-xs text-muted-foreground">{p.time}</TableCell>
+                                            <TableCell className="text-right">
+                                                <Button 
+                                                    size="sm" 
+                                                    className="bg-indigo-600 hover:bg-indigo-700 h-8 px-3 text-xs"
+                                                    onClick={() => {
+                                                        setShowPrescriptions(false);
+                                                        router.push('/print-prescription');
+                                                    }}
+                                                >
+                                                    Show Prescription
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </>
     );
 };
@@ -1242,14 +1339,16 @@ const AdminDashboard = () => {
     const patientsRef = useMemoFirebase(() => firestore ? collection(firestore, 'patients') : null, [firestore]);
     const billingRecordsRef = useMemoFirebase(() => firestore ? collection(firestore, 'billingRecords') : null, [firestore]);
     const expensesRef = useMemoFirebase(() => firestore ? collection(firestore, 'expenses') : null, [firestore]);
+    const prescriptionsRef = useMemoFirebase(() => firestore ? collection(firestore, 'prescriptions') : null, [firestore]);
 
     const { data: appointments, isLoading: appointmentsLoading } = useCollection<Appointment>(appointmentsRef);
     const { data: doctors, isLoading: doctorsLoading } = useCollection<Doctor>(doctorsRef);
     const { data: patients, isLoading: patientsLoading } = useCollection<Patient>(patientsRef);
     const { data: billingRecords, isLoading: billingLoading } = useCollection<BillingRecord>(billingRecordsRef);
     const { data: allExpenses, isLoading: expensesLoading } = useCollection<any>(expensesRef);
+    const { data: prescriptions, isLoading: prescriptionsLoading } = useCollection<any>(prescriptionsRef);
 
-    const isLoading = appointmentsLoading || doctorsLoading || patientsLoading || billingLoading || expensesLoading;
+    const isLoading = appointmentsLoading || doctorsLoading || patientsLoading || billingLoading || expensesLoading || prescriptionsLoading;
 
     const enrichedAppointments = React.useMemo(() => {
         if (!appointments || !doctors || !patients) return [];
@@ -1522,6 +1621,7 @@ const AdminDashboard = () => {
                 allExpenses={allExpenses || []}
                 appointments={appointments || []}
                 patients={patients || []}
+                prescriptions={prescriptions || []}
                 selectedDate={selectedDate || new Date()}
                 periodMode={periodMode === 'range' ? undefined : periodMode}
                 dateRange={periodMode === 'range' ? selectedRange : undefined}
@@ -1555,6 +1655,38 @@ const AdminDashboard = () => {
                         ))}
                         {enrichedAppointments.length === 0 && (
                             <p className="text-sm text-muted-foreground text-center py-4">No recent activity.</p>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                        <CardTitle>Recent Prescriptions</CardTitle>
+                        <Button variant="ghost" size="sm" asChild>
+                            <Link href="/print-prescription" className="text-xs text-indigo-600 font-bold">View Queue</Link>
+                        </Button>
+                    </CardHeader>
+                    <CardContent className="grid gap-4">
+                        {prescriptions?.slice(0, 5).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((p: any, i: number) => (
+                            <div key={p.id || i} className="flex items-center gap-4">
+                                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                                    <FileText className="h-4 w-4" />
+                                </div>
+                                <div className="grid gap-1">
+                                    <p className="text-sm font-medium leading-none">
+                                        {p.patientName}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {p.doctorName} - {p.printStatus}
+                                    </p>
+                                </div>
+                                <div className="ml-auto font-medium text-[10px] text-muted-foreground">
+                                    {p.createdAt ? format(new Date(p.createdAt), 'h:mm a') : 'N/A'}
+                                </div>
+                            </div>
+                        ))}
+                        {(!prescriptions || prescriptions.length === 0) && (
+                            <p className="text-sm text-muted-foreground text-center py-4">No prescriptions found.</p>
                         )}
                     </CardContent>
                 </Card>

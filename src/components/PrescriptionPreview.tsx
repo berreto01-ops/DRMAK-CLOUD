@@ -26,6 +26,7 @@ export interface PrescriptionPreviewProps {
   examination: string;
   diagnosis: string;
   medicines: Medicine[];
+  investigations: string;
   procedure: string;
   advice: string;
   followUpDates: string[];
@@ -129,9 +130,9 @@ function LetterheadLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>) {
         </div>
       )}
 
-      {/* 1. Chief Complaint + 2. Examination + 3. Diagnosis */}
-      {(p.chiefComplaint || p.examination || p.diagnosis) && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8mm', marginBottom: '4mm' }}>
+      {/* 1. Chief Complaint + 2. Examination + 3. Investigations + 4. Diagnosis */}
+      {(p.chiefComplaint || p.examination || p.investigations || p.diagnosis) && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '8mm', marginBottom: '4mm' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '3mm' }}>
             {p.chiefComplaint && (
               <div>
@@ -145,11 +146,17 @@ function LetterheadLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>) {
                 <div style={{ fontSize: '10pt', lineHeight: 1.4 }}>{p.examination}</div>
               </div>
             )}
+            {p.investigations && (
+              <div>
+                <div style={{ fontSize: '7.5pt', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#333', marginBottom: '1mm' }}>3. Investigations</div>
+                <div style={{ fontSize: '10pt', lineHeight: 1.4 }}>{p.investigations}</div>
+              </div>
+            )}
           </div>
           <div>
             {p.diagnosis && (
               <div>
-                <div style={{ fontSize: '7.5pt', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#333', marginBottom: '1mm' }}>3. Diagnosis</div>
+                <div style={{ fontSize: '7.5pt', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#333', marginBottom: '1mm' }}>4. Diagnosis</div>
                 <div style={{ fontSize: '10.5pt', lineHeight: 1.4, fontWeight: 700 }}>{p.diagnosis}</div>
               </div>
             )}
@@ -157,11 +164,11 @@ function LetterheadLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>) {
         </div>
       )}
 
-      {/* 4. Treatment (Medicines) */}
+      {/* 5. Treatment (Medicines) */}
       <div style={{ marginBottom: '8mm' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4mm' }}>
           <RxSymbol />
-          <div style={{ fontSize: '10pt', fontWeight: 900, color: GOLD, textTransform: 'uppercase', letterSpacing: '2px' }}>4. Treatment Plan</div>
+          <div style={{ fontSize: '10pt', fontWeight: 900, color: GOLD, textTransform: 'uppercase', letterSpacing: '2px' }}>5. Treatment Plan</div>
         </div>
         <div style={{ paddingLeft: '2mm' }}>
           {namedMeds.length === 0 && <div style={{ fontSize: '10pt', color: '#ccc', fontStyle: 'italic' }}>No medication prescribed.</div>}
@@ -184,46 +191,46 @@ function LetterheadLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>) {
         </div>
       </div>
 
-      {/* 5. Advice + 6. Procedure */}
+      {/* 6. Advice + 7. Procedure */}
       {(p.advice || p.procedure) && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8mm', marginBottom: '4mm', borderTop: '0.5px solid #eee', paddingTop: '3mm' }}>
           {p.advice && (
             <div>
-              <div style={{ fontSize: '7.5pt', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#333', marginBottom: '1mm' }}>5. Advice</div>
+              <div style={{ fontSize: '7.5pt', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#333', marginBottom: '1mm' }}>6. Advice</div>
               <div style={{ fontSize: '9.5pt', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{p.advice}</div>
             </div>
           )}
           {p.procedure && (
             <div>
-              <div style={{ fontSize: '7.5pt', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#333', marginBottom: '1mm' }}>6. Procedure</div>
+              <div style={{ fontSize: '7.5pt', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#333', marginBottom: '1mm' }}>7. Procedure</div>
               <div style={{ fontSize: '9.5pt', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{p.procedure}</div>
             </div>
           )}
         </div>
       )}
 
-      {/* 7. Follow up */}
+      {/* 8. Follow up */}
       {p.followUpDates.length > 0 && (
         <div style={{ marginBottom: '4mm', borderTop: '0.5px solid #eee', paddingTop: '3mm' }}>
-          <div style={{ fontSize: '7.5pt', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#333', marginBottom: '1.5mm' }}>7. Follow-up</div>
+          <div style={{ fontSize: '7.5pt', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#333', marginBottom: '1.5mm' }}>8. Follow-up</div>
           <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
             {p.followUpDates.map(d => <span key={d} style={{ fontSize: '10pt', fontWeight: 700 }}>• {safeFormatDate(d)}</span>)}
           </div>
         </div>
       )}
 
-      {/* 8. Allergies + 9. Co-Morbids */}
+      {/* 9. Allergies + 10. Co-Morbids */}
       {(p.allergies || p.coMorbids) && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8mm', marginBottom: '4mm', borderTop: '0.5px solid #eee', paddingTop: '3mm' }}>
           {p.allergies && (
             <div>
-              <div style={{ fontSize: '7.5pt', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#333', marginBottom: '1mm' }}>8. Allergies</div>
+              <div style={{ fontSize: '7.5pt', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#333', marginBottom: '1mm' }}>9. Allergies</div>
               <div style={{ fontSize: '9pt', color: '#d32f2f', fontWeight: 600 }}>{p.allergies}</div>
             </div>
           )}
           {p.coMorbids && (
             <div>
-              <div style={{ fontSize: '7.5pt', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#333', marginBottom: '1mm' }}>9. Co-Morbids</div>
+              <div style={{ fontSize: '7.5pt', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#333', marginBottom: '1mm' }}>10. Co-Morbids</div>
               <div style={{ fontSize: '9pt', color: '#555' }}>{p.coMorbids}</div>
             </div>
           )}
@@ -353,11 +360,17 @@ function DigitalLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>) {
                   <div style={{ fontSize: '10.5pt', lineHeight: 1.5, color: '#333', fontWeight: 500 }}>{p.examination}</div>
                 </div>
               )}
+              {p.investigations && (
+                <div style={{ borderLeft: `3px solid ${GOLD}`, paddingLeft: '4mm' }}>
+                  <div style={{ fontSize: '9pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', marginBottom: '1.5mm', letterSpacing: '1px' }}>3. Investigations</div>
+                  <div style={{ fontSize: '10.5pt', lineHeight: 1.5, color: '#333', fontWeight: 500 }}>{p.investigations}</div>
+                </div>
+              )}
             </div>
             <div>
               {p.diagnosis && (
                 <div style={{ borderLeft: `3px solid ${GOLD}`, paddingLeft: '4mm' }}>
-                  <div style={{ fontSize: '9pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', marginBottom: '1.5mm', letterSpacing: '1px' }}>3. Diagnosis</div>
+                  <div style={{ fontSize: '9pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', marginBottom: '1.5mm', letterSpacing: '1px' }}>4. Diagnosis</div>
                   <div style={{ fontSize: '13pt', fontWeight: 800, lineHeight: 1.4, color: INK }}>{p.diagnosis}</div>
                 </div>
               )}
@@ -368,7 +381,7 @@ function DigitalLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>) {
           <div style={{ marginBottom: '10mm', padding: '6mm', backgroundColor: '#fafafa', borderRadius: '4mm', border: '1px solid #f0f0f0' }}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4mm' }}>
               <RxSymbol />
-              <div style={{ fontSize: '10pt', fontWeight: 900, color: GOLD, textTransform: 'uppercase', letterSpacing: '2px' }}>4. Treatment Plan (Medications)</div>
+              <div style={{ fontSize: '10pt', fontWeight: 900, color: GOLD, textTransform: 'uppercase', letterSpacing: '2px' }}>5. Treatment Plan (Medications)</div>
             </div>
             <div style={{ paddingLeft: '2mm' }}>
               {p.medicines.filter(m => m.name).map((med, i) => (
@@ -394,13 +407,13 @@ function DigitalLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12mm', marginBottom: '8mm' }}>
             {p.advice && (
               <div>
-                <div style={{ fontSize: '9pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', marginBottom: '2mm', letterSpacing: '1px' }}>5. Special Advice</div>
+                <div style={{ fontSize: '9pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', marginBottom: '2mm', letterSpacing: '1px' }}>6. Special Advice</div>
                 <div style={{ fontSize: '10.5pt', color: '#444', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{p.advice}</div>
               </div>
             )}
             {p.procedure && (
               <div>
-                <div style={{ fontSize: '9pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', marginBottom: '2mm', letterSpacing: '1px' }}>6. Recommended Procedure</div>
+                <div style={{ fontSize: '9pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', marginBottom: '2mm', letterSpacing: '1px' }}>7. Recommended Procedure</div>
                 <div style={{ fontSize: '10.5pt', color: '#444', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{p.procedure}</div>
               </div>
             )}
@@ -409,7 +422,7 @@ function DigitalLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12mm', marginTop: 'auto' }}>
             {p.followUpDates.length > 0 && (
               <div>
-                <div style={{ fontSize: '9pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', marginBottom: '2.5mm' }}>7. Follow-up Appointments</div>
+                <div style={{ fontSize: '9pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', marginBottom: '2.5mm' }}>8. Follow-up Appointments</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                   {p.followUpDates.map(d => (
                     <div key={d} style={{ fontSize: '11pt', fontWeight: 800, color: INK, backgroundColor: LIGHT_GOLD, padding: '2mm 4mm', borderRadius: '2mm', border: `1px solid ${GOLD}40` }}>
@@ -422,13 +435,13 @@ function DigitalLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6mm' }}>
               {p.allergies && (
                 <div style={{ backgroundColor: '#fff5f5', padding: '4mm 5mm', borderRadius: '2mm', borderLeft: '4px solid #f56565' }}>
-                  <div style={{ fontSize: '8.5pt', fontWeight: 800, color: '#c53030', textTransform: 'uppercase', marginBottom: '1mm' }}>8. Known Allergies</div>
+                  <div style={{ fontSize: '8.5pt', fontWeight: 800, color: '#c53030', textTransform: 'uppercase', marginBottom: '1mm' }}>9. Known Allergies</div>
                   <div style={{ fontSize: '11pt', color: '#c53030', fontWeight: 700 }}>{p.allergies}</div>
                 </div>
               )}
               {p.coMorbids && (
                 <div style={{ backgroundColor: '#f7fafc', padding: '4mm 5mm', borderRadius: '2mm', borderLeft: '4px solid #4a5568' }}>
-                  <div style={{ fontSize: '8.5pt', fontWeight: 800, color: '#2d3748', textTransform: 'uppercase', marginBottom: '1mm' }}>9. Co-Morbids</div>
+                  <div style={{ fontSize: '8.5pt', fontWeight: 800, color: '#2d3748', textTransform: 'uppercase', marginBottom: '1mm' }}>10. Co-Morbids</div>
                   <div style={{ fontSize: '11pt', color: '#4a5568', fontWeight: 600 }}>{p.coMorbids}</div>
                 </div>
               )}
@@ -495,31 +508,28 @@ function PrintStyles() {
         html, body {
           margin: 0 !important;
           padding: 0 !important;
-          width: 210mm !important;
-          height: 297mm !important;
-          overflow: hidden !important;
           -webkit-print-color-adjust: exact;
         }
-        .prescription-print-container {
+        /* Absolute Isolation: Nuke everything else from the DOM flow */
+        body > *:not(.prescription-print-active) {
+          display: none !important;
+        }
+        .prescription-print-active {
           position: fixed !important;
           top: 0 !important;
           left: 0 !important;
           width: 210mm !important;
           height: 297mm !important;
           margin: 0 !important;
-          padding-top: 44mm; /* Restore padding for LetterheadLayout if needed, but DigitalLayout has its own */
+          padding: 0 !important;
           background: white !important;
-          z-index: 99999 !important;
+          z-index: 9999999 !important;
+          display: block !important;
+          overflow: hidden !important;
           page-break-after: avoid !important;
           page-break-before: avoid !important;
-        }
-        /* Specific adjustments for DigitalLayout which handles its own padding */
-        .prescription-print-container.digital-mode {
-          padding-top: 0 !important;
-        }
-        /* Ensure anything outside the print container is hidden */
-        #root, .main-layout, sidebar, nav, header, footer {
-          display: none !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
         }
       }
     `}} />
@@ -533,8 +543,8 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
 
   React.useLayoutEffect(() => {
     if (leftColRef.current) {
-      // 160mm threshold to ensure shift before hitting "NOT VALID FOR COURT"
-      const thresholdPx = 160 * 3.7795; 
+      // 180mm threshold to ensure shift before hitting "NOT VALID FOR COURT"
+      const thresholdPx = 180 * 3.7795; 
       const currentHeight = leftColRef.current.scrollHeight;
       if (currentHeight > thresholdPx) {
         setShouldSpillOver(true);
@@ -542,31 +552,31 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
         setShouldSpillOver(false);
       }
     }
-  }, [p.chiefComplaint, p.examination, p.diagnosis, p.allergies, p.coMorbids, p.medications, p.advice, p.procedure, p.followUpDates]);
+  }, [p.chiefComplaint, p.examination, p.investigations, p.diagnosis, p.allergies, p.coMorbids, p.medicines, p.advice, p.procedure, p.followUpDates]);
 
   const CarePlan = () => (
-    <>
+    <div style={{ marginTop: '4mm' }}>
       {p.advice && (
-        <div style={{ marginBottom: '5mm' }}>
-          <div style={{ fontSize: '10.5pt', fontWeight: 800, color: GOLD, marginBottom: '1.5mm' }}>Advice:</div>
-          <div style={{ fontSize: '12pt', lineHeight: 1.4, paddingLeft: '2mm', whiteSpace: 'pre-line' }}>{p.advice}</div>
+        <div style={{ marginBottom: '6mm' }}>
+          <div style={{ fontSize: '10pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1.5mm' }}>6. Special Advice:</div>
+          <div style={{ fontSize: '11pt', lineHeight: 1.5, paddingLeft: '2mm', whiteSpace: 'pre-line', color: '#444' }}>{p.advice}</div>
         </div>
       )}
       {p.procedure && (
-        <div style={{ marginBottom: '5mm' }}>
-          <div style={{ fontSize: '10.5pt', fontWeight: 800, color: GOLD, marginBottom: '1.5mm' }}>Procedure:</div>
-          <div style={{ fontSize: '12pt', lineHeight: 1.4, paddingLeft: '2mm', whiteSpace: 'pre-line' }}>{p.procedure}</div>
+        <div style={{ marginBottom: '6mm' }}>
+          <div style={{ fontSize: '10pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1.5mm' }}>7. Procedure:</div>
+          <div style={{ fontSize: '11pt', lineHeight: 1.5, paddingLeft: '2mm', whiteSpace: 'pre-line', color: '#444' }}>{p.procedure}</div>
         </div>
       )}
       {p.followUpDates.length > 0 && (
-        <div style={{ marginBottom: '5mm' }}>
-          <div style={{ fontSize: '10.5pt', fontWeight: 800, color: GOLD, marginBottom: '1.5mm' }}>Follow-up:</div>
-          <div style={{ fontSize: '12pt', fontWeight: 700, color: INK, paddingLeft: '2mm' }}>
+        <div style={{ marginBottom: '6mm' }}>
+          <div style={{ fontSize: '10pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1.5mm' }}>8. Follow-up:</div>
+          <div style={{ fontSize: '12pt', fontWeight: 800, color: INK, paddingLeft: '2mm' }}>
             {p.followUpDates.map(d => safeFormatDate(d)).join(', ')}
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 
   return (
@@ -597,66 +607,72 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
         <div style={{ 
           position: 'relative', 
           zIndex: 1, 
-          paddingTop: '48mm', 
-          paddingBottom: '30mm',
-          paddingLeft: '18mm',
-          paddingRight: '18mm',
+          paddingTop: '52mm', 
+          paddingBottom: '35mm',
+          paddingLeft: '16mm',
+          paddingRight: '16mm',
           display: 'grid', 
           gridTemplateColumns: '1.2fr 1fr', 
-          gap: '12mm',
-          minHeight: '240mm', 
+          gap: '10mm',
+          minHeight: '245mm', 
           background: 'transparent',
           color: INK
         }}>
           {/* Left Column: Primary Clinical Information */}
           <div ref={leftColRef} style={{ display: 'flex', flexDirection: 'column' }}>
             {p.chiefComplaint && (
-              <div style={{ marginBottom: '5mm' }}>
-                <div style={{ fontSize: '10.5pt', fontWeight: 800, color: GOLD, marginBottom: '1.5mm' }}>Chief Complaints:</div>
-                <div style={{ fontSize: '12pt', lineHeight: 1.4, paddingLeft: '2mm', whiteSpace: 'pre-line' }}>{p.chiefComplaint}</div>
+              <div style={{ marginBottom: '6mm', borderLeft: `2px solid ${GOLD}40`, paddingLeft: '4mm' }}>
+                <div style={{ fontSize: '9pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1.5mm' }}>1. Chief Complaints:</div>
+                <div style={{ fontSize: '11.5pt', lineHeight: 1.4, whiteSpace: 'pre-line', color: '#333' }}>{p.chiefComplaint}</div>
               </div>
             )}
             {p.examination && (
-              <div style={{ marginBottom: '5mm' }}>
-                <div style={{ fontSize: '10.5pt', fontWeight: 800, color: GOLD, marginBottom: '1.5mm' }}>Examination:</div>
-                <div style={{ fontSize: '12pt', lineHeight: 1.4, paddingLeft: '2mm', whiteSpace: 'pre-line' }}>{p.examination}</div>
+              <div style={{ marginBottom: '6mm', borderLeft: `2px solid ${GOLD}40`, paddingLeft: '4mm' }}>
+                <div style={{ fontSize: '9pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1.5mm' }}>2. Examination:</div>
+                <div style={{ fontSize: '11.5pt', lineHeight: 1.4, whiteSpace: 'pre-line', color: '#333' }}>{p.examination}</div>
+              </div>
+            )}
+            {p.investigations && (
+              <div style={{ marginBottom: '6mm', borderLeft: `2px solid ${GOLD}40`, paddingLeft: '4mm' }}>
+                <div style={{ fontSize: '9pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1.5mm' }}>3. Investigations:</div>
+                <div style={{ fontSize: '11.5pt', lineHeight: 1.4, whiteSpace: 'pre-line', color: '#333' }}>{p.investigations}</div>
               </div>
             )}
             {p.diagnosis && (
-              <div style={{ marginBottom: '5mm' }}>
-                <div style={{ fontSize: '10.5pt', fontWeight: 800, color: GOLD, marginBottom: '1.5mm' }}>Diagnosis:</div>
-                <div style={{ fontSize: '12pt', fontWeight: 700, paddingLeft: '2mm', whiteSpace: 'pre-line' }}>{p.diagnosis}</div>
+              <div style={{ marginBottom: '6mm', borderLeft: `3px solid ${GOLD}`, paddingLeft: '4mm' }}>
+                <div style={{ fontSize: '9pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1.5mm' }}>4. Diagnosis:</div>
+                <div style={{ fontSize: '13pt', fontWeight: 900, whiteSpace: 'pre-line', color: INK }}>{p.diagnosis}</div>
               </div>
             )}
             {p.allergies && (
-              <div style={{ marginBottom: '5mm' }}>
-                <div style={{ fontSize: '10.5pt', fontWeight: 800, color: GOLD, marginBottom: '1.5mm' }}>Allergies:</div>
-                <div style={{ fontSize: '12pt', fontWeight: 800, color: '#c53030', paddingLeft: '2mm', whiteSpace: 'pre-line' }}>{p.allergies}</div>
+              <div style={{ marginBottom: '6mm', backgroundColor: '#fff5f5', padding: '3mm 4mm', borderRadius: '2mm', borderLeft: '4px solid #f56565' }}>
+                <div style={{ fontSize: '8pt', fontWeight: 800, color: '#c53030', textTransform: 'uppercase', marginBottom: '1mm' }}>Allergies:</div>
+                <div style={{ fontSize: '11pt', fontWeight: 800, color: '#c53030' }}>{p.allergies}</div>
               </div>
             )}
             {p.coMorbids && (
-              <div style={{ marginBottom: '6mm' }}>
-                <div style={{ fontSize: '10.5pt', fontWeight: 800, color: GOLD, marginBottom: '1.5mm' }}>Co-Morbids:</div>
-                <div style={{ fontSize: '12pt', paddingLeft: '2mm', whiteSpace: 'pre-line' }}>{p.coMorbids}</div>
+              <div style={{ marginBottom: '6mm', backgroundColor: '#f8fafc', padding: '3mm 4mm', borderRadius: '2mm', borderLeft: '4px solid #475569' }}>
+                <div style={{ fontSize: '8pt', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '1mm' }}>Co-Morbids:</div>
+                <div style={{ fontSize: '11pt', color: '#475569', fontWeight: 600 }}>{p.coMorbids}</div>
               </div>
             )}
             {namedMeds.length > 0 && (
-              <div style={{ marginTop: '2mm', marginBottom: '5mm' }}>
-                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '2mm' }}>
-                  <span style={{ fontSize: '16pt', fontWeight: 800, color: GOLD, fontFamily: 'serif', marginRight: '3mm' }}>℞</span>
-                  <span style={{ fontSize: '10.5pt', fontWeight: 800, color: GOLD }}>Treatment (Medicines):</span>
+              <div style={{ marginTop: '2mm', marginBottom: '6mm' }}>
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4mm' }}>
+                  <span style={{ fontSize: '20pt', fontWeight: 900, color: GOLD, fontFamily: 'serif', marginRight: '3mm', lineHeight: 1 }}>℞</span>
+                  <span style={{ fontSize: '10pt', fontWeight: 900, color: GOLD, textTransform: 'uppercase', letterSpacing: '2px' }}>5. Treatment Plan</span>
                 </div>
                 <div style={{ paddingLeft: '4mm' }}>
                   {namedMeds.map((med, i) => (
-                    <div key={med.id} style={{ marginBottom: '4mm' }}>
+                    <div key={med.id} style={{ marginBottom: '5mm', borderBottom: '0.5px dashed #eee', paddingBottom: '3mm' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                        <div style={{ fontSize: '12pt', fontWeight: 700, color: INK }}>{i + 1}. {med.name}</div>
-                        <div style={{ fontSize: '10.5pt', color: INK, fontWeight: 700 }}>{med.dosage} — {med.frequency}</div>
+                        <div style={{ fontSize: '13pt', fontWeight: 800, color: INK }}>{i + 1}. {med.name}</div>
+                        <div style={{ fontSize: '10.5pt', color: GOLD, fontWeight: 700 }}>{med.dosage} — {med.frequency}</div>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1mm', paddingLeft: '4mm' }}>
-                        <div style={{ fontSize: '10pt', color: '#666', fontWeight: 600 }}>Duration: {med.duration}</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5mm', paddingLeft: '4mm' }}>
+                        <div style={{ fontSize: '9.5pt', color: '#666', fontWeight: 600 }}>Duration: {med.duration}</div>
                         {med.instructions && (
-                          <div style={{ fontSize: '10pt', color: INK, fontStyle: 'italic', fontWeight: 500 }}>
+                          <div style={{ fontSize: '9.5pt', color: INK, fontStyle: 'italic', fontWeight: 500 }}>
                             <span style={{ color: GOLD, fontWeight: 800, fontStyle: 'normal' }}>Note: </span>{med.instructions}
                           </div>
                         )}
@@ -670,27 +686,37 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
           </div>
 
           {/* Right Column: Patient Info & Spillover */}
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {/* Patient Data Block (Aligned strictly to gold lines) */}
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            borderLeft: `1.5px solid ${GOLD}40`, // Integrated vertical line
+            paddingLeft: '8mm' // Sensible padding from the line
+          }}>
+            {/* Patient Data Block (Aligned strictly to template gold lines) */}
             <div style={{ 
               display: 'flex',
               flexDirection: 'column',
-              fontSize: '11.5pt', 
-              fontWeight: 700,
-              paddingLeft: '55mm', 
+              fontSize: '11pt', 
+              fontWeight: 800,
               paddingRight: '5mm',
-              marginBottom: '30mm',
-              whiteSpace: 'nowrap'
+              marginBottom: '35mm',
+              whiteSpace: 'nowrap',
+              color: INK
             }}>
-              <div style={{ height: '9mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm' }}>{p.patient?.name}</div>
-              <div style={{ height: '19.5mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm' }}>{p.prescriptionAge ? `${p.prescriptionAge} Years` : ''}</div>
-              <div style={{ height: '20.5mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm' }}>{p.prescriptionGender || p.patient?.gender}</div>
-              <div style={{ height: '5mm' }}></div> 
-              <div style={{ height: '15mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm' }}>{p.today}</div>
+              {/* Name - Height adjusted for template alignment */}
+              <div style={{ height: '8mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm', paddingLeft: '45mm' }}>{p.patient?.name}</div>
+              {/* Age - Height adjusted to skip to next line */}
+              <div style={{ height: '20mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm', paddingLeft: '45mm' }}>{p.prescriptionAge ? `${p.prescriptionAge} Years` : ''}</div>
+              {/* Sex - Height adjusted to skip to next line */}
+              <div style={{ height: '22mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm', paddingLeft: '45mm' }}>{p.prescriptionGender || p.patient?.gender}</div>
+              <div style={{ height: '4mm' }}></div> 
+              {/* Date - Height adjusted to skip to next line */}
+              <div style={{ height: '17mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm', paddingLeft: '45mm' }}>{p.today}</div>
             </div>
+
             {shouldSpillOver && (
               <div style={{ 
-                paddingLeft: '45mm', // Shifted further right
+                paddingLeft: '50mm', // Align with the spillover zone in right col
                 paddingRight: '5mm', 
                 marginTop: '10mm',
                 whiteSpace: 'pre-line',

@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Trash2, Printer, Save, Search, Calendar, X, Send, Loader2 } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PlusCircle, Trash2, Printer, Save, Search, Calendar, X, Send, Loader2, Shield } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectValue, SelectTrigger } from '@/components/ui/select';
 import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { collection, addDoc, updateDoc, doc, query, where, deleteDoc } from 'firebase/firestore';
 import type { Patient, Doctor, PharmacyItem, Supplier } from '@/lib/types';
@@ -43,6 +43,29 @@ type Vital = {
   height: string;
 };
 
+const INVESTIGATION_OPTIONS = [
+  "CBC",
+  "LFT",
+  "RFT",
+  "UR/E",
+  "Sr. TSH",
+  "Sr. DHEAS",
+  "Sr. Prolactin",
+  "Sr. Testosterone",
+  "Sr. LH (3rd day of cycle)",
+  "Sr. FSH (3rd day of cycle)",
+  "HBA1C",
+  "RBS",
+  "VIt. B12",
+  "Sr. Ferritin",
+  "ANA Screening",
+  "ANA Profile",
+  "HbsAg",
+  "Anti-HCV",
+  "HIV Screening",
+  "Other"
+];
+
 const defaultMedicine = (): Medicine => ({
   id: uuidv4(),
   name: '',
@@ -55,7 +78,8 @@ const defaultMedicine = (): Medicine => ({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function EPrescriptionPage() {
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
+  const userProfile = user;
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -65,16 +89,31 @@ export default function EPrescriptionPage() {
   const doctorsRef = useMemoFirebase(() => firestore ? collection(firestore, 'doctors') : null, [firestore]);
   const { data: doctors } = useCollection<Doctor>(doctorsRef);
 
-  const pharmacyItemsRef = useMemoFirebase(() => firestore ? collection(firestore, 'pharmacyItems') : null, [firestore]);
+  const pharmacyItemsRef = useMemoFirebase(() => {
+    const authorized = userProfile?.role === 'Admin' || userProfile?.role === 'Operations Manager' || userProfile?.role === 'Doctor';
+    return (firestore && authorized) ? collection(firestore, 'pharmacyItems') : null;
+  }, [firestore, userProfile]);
   const { data: pharmacyItems } = useCollection<PharmacyItem>(pharmacyItemsRef);
 
-  const suppliersRef = useMemoFirebase(() => firestore ? collection(firestore, 'suppliers') : null, [firestore]);
+  const suppliersRef = useMemoFirebase(() => {
+    const authorized = userProfile?.role === 'Admin' || userProfile?.role === 'Operations Manager' || userProfile?.role === 'Doctor';
+    return (firestore && authorized) ? collection(firestore, 'suppliers') : null;
+  }, [firestore, userProfile]);
   const { data: suppliers } = useCollection<Supplier>(suppliersRef);
+
+  const proceduresRef = useMemoFirebase(() => firestore ? collection(firestore, 'procedures') : null, [firestore]);
+  const { data: proceduresData } = useCollection<any>(proceduresRef);
+  const procedureOptions = React.useMemo(() => {
+    if (!proceduresData) return ["Other"];
+    const names = proceduresData.map((p: any) => p.name).sort();
+    return [...names, "Other"];
+  }, [proceduresData]);
 
   const [selectedPatient, setSelectedPatient] = React.useState<Patient | null>(null);
   const [patientSearch, setPatientSearch] = React.useState('');
   const [chiefComplaint, setChiefComplaint] = React.useState('');
   const [examination, setExamination] = React.useState('');
+  const [investigations, setInvestigations] = React.useState('');
   const [diagnosis, setDiagnosis] = React.useState('');
   const [medicines, setMedicines] = React.useState<Medicine[]>([defaultMedicine()]);
   const [advice, setAdvice] = React.useState('');
@@ -92,16 +131,46 @@ export default function EPrescriptionPage() {
   const [previewRx, setPreviewRx] = React.useState<any | null>(null);
   const [rxToDelete, setRxToDelete] = React.useState<string | null>(null);
   const [selectedDoctorId, setSelectedDoctorId] = React.useState<string | null>(null);
+  const [showOtherInvestigation, setShowOtherInvestigation] = React.useState(false);
+  const [showOtherProcedure, setShowOtherProcedure] = React.useState(false);
+
+  // ─── Role Gate ──────────────────────────────────────────────────────────────
+  const isAuthorized = React.useMemo(() => {
+    if (isUserLoading) return true; // Wait for load
+    const authorizedRoles = ['Admin', 'Doctor', 'Operations Manager', 'Pharmacy'];
+    return userProfile && authorizedRoles.includes(userProfile.role);
+  }, [userProfile, isUserLoading]);
+
+  if (!isUserLoading && !isAuthorized) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-center px-6">
+        <div className="bg-red-50 p-6 rounded-full ring-8 ring-red-50/50 mb-4">
+          <Shield className="h-12 w-12 text-red-600" />
+        </div>
+        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Access Restricted</h2>
+        <p className="text-slate-500 max-w-md mx-auto">
+          The E-Prescription module is restricted to medical staff and administrators. 
+          Your current role (<strong>{userProfile?.role}</strong>) does not have permission to access patient clinical data.
+        </p>
+        <Button onClick={() => window.location.href = '/'} variant="outline" className="mt-4">
+          Return to Dashboard
+        </Button>
+      </div>
+    );
+  }
 
   const resetForm = () => {
     setSelectedPatient(null);
     setPatientSearch('');
     setChiefComplaint('');
     setExamination('');
+    setInvestigations('');
+    setShowOtherInvestigation(false);
     setDiagnosis('');
     setMedicines([defaultMedicine()]);
     setAdvice('');
     setProcedure('');
+    setShowOtherProcedure(false);
     setFollowUpDates([]);
     setNewFollowUpDate('');
     setAllergies('');
@@ -126,10 +195,13 @@ export default function EPrescriptionPage() {
   const handleLoadPrescription = (rx: any) => {
     setChiefComplaint(rx.chiefComplaint || '');
     setExamination(rx.examination || '');
+    setInvestigations(rx.investigations || '');
+    setShowOtherInvestigation(rx.investigations ? !INVESTIGATION_OPTIONS.includes(rx.investigations) || rx.investigations === "Other" : false);
     setDiagnosis(rx.diagnosis || '');
     setMedicines(rx.medicines && rx.medicines.length > 0 ? rx.medicines : [defaultMedicine()]);
     setAdvice(rx.advice || '');
     setProcedure(rx.procedure || '');
+    setShowOtherProcedure(rx.procedure ? !procedureOptions.includes(rx.procedure) || rx.procedure === "Other" : false);
     setFollowUpDates(rx.followUp || []);
     setAllergies(rx.allergies || '');
     setCoMorbids(rx.coMorbids || '');
@@ -186,31 +258,36 @@ export default function EPrescriptionPage() {
     }
     setIsSaving(true);
     try {
-      const docRef = await addDoc(collection(firestore, 'prescriptions'), {
+      await addDoc(collection(firestore, 'prescriptions'), {
         patientId: selectedPatient.id,
         patientName: selectedPatient.name,
         patientMobile: selectedPatient.mobileNumber,
         patient: selectedPatient,
         doctorId: linkedDoctor?.id || (user as any)?.doctorId || user?.id,
-        doctorName: linkedDoctor?.fullName || user?.name,
-        doctorQualification: linkedDoctor?.qualification || '',
-        doctorSpecialization: linkedDoctor?.specialization || '',
+        doctorName: linkedDoctor?.fullName || user?.name || 'Dr Prof. Dr Mahvish Aftab Khan',
+        doctorQualification: (linkedDoctor as any)?.qualification || 'MBBS, FCPS, AAAM (USA), PhD (Reg. Med)',
+        doctorSpecialization: (linkedDoctor as any)?.specialization || 'Board Certified Dermatologist & Aesthetic Physician',
         chiefComplaint, 
         examination,
+        investigations,
         diagnosis, 
         medicines, 
         procedure,
         advice,
-        followUp: followUpDates,
+        followUpDates,
+        today: format(new Date(), 'dd MMMM yyyy'),
         allergies,
         coMorbids,
         notes,
         prescriptionAge: prescriptionAge || selectedPatient.age || '',
         prescriptionGender: prescriptionGender || selectedPatient.gender || '',
+        prescriptionTemplateUrl: (linkedDoctor?.useCustomPrescription && !printOnLetterhead) ? linkedDoctor.prescriptionTemplateUrl : undefined,
+        hideBranding: printOnLetterhead,
         createdAt: new Date().toISOString(),
+        printStatus: 'Pending', // Automatically send to print queue
       });
-      setSavedId(docRef.id);
-      toast({ title: 'Prescription Saved', description: 'You can now send it for print.' });
+      toast({ title: 'Prescription Saved', description: 'Sent to Operations Manager for printing.' });
+      resetForm();
     } catch {
       toast({ variant: 'destructive', title: 'Save Failed' });
     }
@@ -228,19 +305,6 @@ export default function EPrescriptionPage() {
     }
   };
 
-  const handleSendForPrint = async () => {
-    if (!firestore || !savedId) return;
-    setIsSaving(true);
-    try {
-      await updateDoc(doc(firestore, 'prescriptions', savedId), { printStatus: 'Pending' });
-      toast({ title: 'Sent for Print', description: 'The prescription has been added to the operations print queue.' });
-      resetForm();
-    } catch {
-      toast({ variant: 'destructive', title: 'Failed to Send for Print' });
-    }
-    setIsSaving(false);
-  };
-
   const doctorName = linkedDoctor?.fullName || user?.name || 'Dr Prof. Dr Mahvish Aftab Khan';
   const doctorQualification = (linkedDoctor as any)?.qualification || 'MBBS, FCPS, AAAM (USA), PhD (Reg. Med)';
   const doctorSpecialization = (linkedDoctor as any)?.specialization || 'Board Certified Dermatologist & Aesthetic Physician';
@@ -251,6 +315,7 @@ export default function EPrescriptionPage() {
     patient: selectedPatient, 
     chiefComplaint, 
     examination,
+    investigations,
     diagnosis, 
     medicines, 
     procedure,
@@ -308,11 +373,8 @@ export default function EPrescriptionPage() {
               </TooltipProvider>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={handleSave} disabled={isSaving || !!savedId}>
-                <Save className="mr-2 h-4 w-4" />{isSaving ? 'Saving...' : savedId ? 'Saved' : 'Save'}
-              </Button>
-              <Button variant="default" onClick={handleSendForPrint} disabled={isSaving || !savedId}>
-                <Send className="mr-2 h-4 w-4" />Send for Print
+              <Button variant="default" onClick={handleSave} disabled={isSaving}>
+                <Save className="mr-2 h-4 w-4" />{isSaving ? 'Saving...' : 'Save Prescription'}
               </Button>
               <Button onClick={handlePrint} variant="secondary"><Printer className="mr-2 h-4 w-4" />Print Direct</Button>
             </div>
@@ -453,29 +515,68 @@ export default function EPrescriptionPage() {
                   <Label className="text-primary font-bold">2. Examination</Label>
                   <Textarea placeholder="Clinical examination findings..." value={examination} onChange={e => setExamination(e.target.value)} rows={3} />
                 </div>
+                
+                {/* 3. Investigations */}
+                <div className="space-y-3">
+                  <Label className="text-primary font-bold">3. Investigations</Label>
+                  <Select 
+                    value={showOtherInvestigation ? "Other" : (INVESTIGATION_OPTIONS.includes(investigations) ? investigations : "")} 
+                    onValueChange={(val) => {
+                      if (val === "Other") {
+                        setShowOtherInvestigation(true);
+                        setInvestigations("");
+                      } else {
+                        setShowOtherInvestigation(false);
+                        setInvestigations(val);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full h-11 bg-white border-primary/20 focus:ring-primary">
+                      <SelectValue placeholder="Select a test or investigation..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INVESTIGATION_OPTIONS.map(opt => (
+                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-                {/* 3. Diagnosis */}
+                  {showOtherInvestigation && (
+                    <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <Label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">Custom Investigation Details</Label>
+                      <Textarea 
+                        placeholder="Enter custom lab tests, imaging, or specific details..." 
+                        value={investigations} 
+                        onChange={e => setInvestigations(e.target.value)} 
+                        rows={3}
+                        className="bg-primary/5 border-primary/20 focus:bg-white transition-colors"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Diagnosis */}
                 <div className="space-y-2">
-                  <Label className="text-primary font-bold">3. Diagnosis</Label>
+                  <Label className="text-primary font-bold">4. Diagnosis</Label>
                   <Textarea placeholder="Clinical diagnosis..." value={diagnosis} onChange={e => setDiagnosis(e.target.value)} rows={3} />
                 </div>
 
-                {/* 4. Allergies */}
+                {/* 5. Allergies */}
                 <div className="space-y-2 pt-4 border-t">
-                  <Label className="text-primary font-bold">4. Allergies</Label>
+                  <Label className="text-primary font-bold">5. Allergies</Label>
                   <Textarea placeholder="Known drug or food allergies..." value={allergies} onChange={e => setAllergies(e.target.value)} rows={2} />
                 </div>
 
-                {/* 5. Co-Morbids */}
+                {/* 6. Co-Morbids */}
                 <div className="space-y-2 pt-4 border-t">
-                  <Label className="text-primary font-bold">5. Co-Morbids</Label>
+                  <Label className="text-primary font-bold">6. Co-Morbids</Label>
                   <Textarea placeholder="Diabetes, Hypertension, etc..." value={coMorbids} onChange={e => setCoMorbids(e.target.value)} rows={2} />
                 </div>
 
-                {/* 6. Treatment (Medicines) */}
+                {/* 7. Treatment (Medicines) */}
                 <div className="space-y-3 pt-4 border-t">
                   <div className="flex items-center justify-between">
-                    <Label className="text-primary font-bold">6. Treatment (Medicines)</Label>
+                    <Label className="text-primary font-bold">7. Treatment (Medicines)</Label>
                     <Button size="sm" variant="outline" onClick={() => setMedicines(prev => [...prev, defaultMedicine()])}><PlusCircle className="mr-2 h-4 w-4" />Add Medicine</Button>
                   </div>
                   <div className="space-y-4 mt-2">
@@ -641,16 +742,49 @@ export default function EPrescriptionPage() {
                   </div>
                 </div>
 
-                {/* 7. Advice */}
+                {/* 8. Advice */}
                 <div className="space-y-2 pt-4 border-t">
-                  <Label className="text-primary font-bold">7. Advice</Label>
+                  <Label className="text-primary font-bold">8. Advice</Label>
                   <Textarea placeholder="Special advice for the patient..." value={advice} onChange={e => setAdvice(e.target.value)} rows={3} />
                 </div>
 
-                {/* 8. Procedure */}
-                <div className="space-y-2 pt-4 border-t">
-                  <Label className="text-primary font-bold">8. Procedure</Label>
-                  <Textarea placeholder="Procedures performed or recommended..." value={procedure} onChange={e => setProcedure(e.target.value)} rows={3} />
+                {/* 9. Procedure */}
+                <div className="space-y-3 pt-4 border-t">
+                  <Label className="text-primary font-bold">9. Procedure</Label>
+                  <Select 
+                    value={showOtherProcedure ? "Other" : (procedureOptions.includes(procedure) ? procedure : "")} 
+                    onValueChange={(val) => {
+                      if (val === "Other") {
+                        setShowOtherProcedure(true);
+                        setProcedure("");
+                      } else {
+                        setShowOtherProcedure(false);
+                        setProcedure(val);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full h-11 bg-white border-primary/20 focus:ring-primary">
+                      <SelectValue placeholder="Select a procedure..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {procedureOptions.map((opt, idx) => (
+                        <SelectItem key={`${opt}-${idx}`} value={opt}>{opt}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {showOtherProcedure && (
+                    <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <Label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">Custom Procedure Details</Label>
+                      <Textarea 
+                        placeholder="Procedures performed or recommended..." 
+                        value={procedure} 
+                        onChange={e => setProcedure(e.target.value)} 
+                        rows={3} 
+                        className="bg-primary/5 border-primary/20 focus:bg-white transition-colors"
+                      />
+                    </div>
+                  )}
                 </div>
 
 
@@ -659,9 +793,9 @@ export default function EPrescriptionPage() {
                   <Label className="text-muted-foreground text-xs">Private Notes (Not Printed)</Label>
                   <Input placeholder="Internal notes..." value={notes} onChange={e => setNotes(e.target.value)} />
                 </div>
-                {/* 9. Follow up */}
+                {/* 10. Follow up */}
                 <div className="space-y-3 pt-4 border-t">
-                  <Label className="text-primary font-bold flex items-center gap-2">9. Follow-up Appointments</Label>
+                  <Label className="text-primary font-bold flex items-center gap-2">10. Follow-up Appointments</Label>
                   <div className="flex gap-2">
                     <Input 
                       type="date" 
@@ -735,6 +869,7 @@ export default function EPrescriptionPage() {
                   followUpDates={previewRx.followUp || []}
                   today={safeFormat(previewRx.createdAt, 'dd MMMM yyyy', today)}
                   hideBranding={false}
+                  investigations={previewRx.investigations || ''}
                 />
               </div>
             </div>
