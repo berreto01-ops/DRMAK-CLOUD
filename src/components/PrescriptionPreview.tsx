@@ -81,10 +81,10 @@ function LetterheadLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>) {
     <div style={{
       fontFamily: "'Arial', sans-serif",
       width: '210mm',
-      height: '297mm',
+      height: '296.5mm',
       boxSizing: 'border-box',
       paddingTop: '44mm',
-      paddingBottom: '62mm',
+      paddingBottom: '55mm',
       paddingLeft: '18mm',
       paddingRight: '18mm',
       display: 'flex',
@@ -280,7 +280,7 @@ function DigitalLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>) {
     <div style={{ padding: '5mm', backgroundColor: '#f5f5f5', minHeight: '100%' }}>
       <div id="prescription-print" style={{ 
         width: '210mm', 
-        minHeight: '297mm', 
+        height: '296.5mm', 
         backgroundColor: '#fff', 
         margin: '0 auto', 
         boxShadow: '0 20px 50px rgba(0,0,0,0.1)',
@@ -295,7 +295,7 @@ function DigitalLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>) {
         <div style={{ position: 'absolute', bottom: 0, left: 0, width: '120mm', height: '120mm', background: `radial-gradient(circle at bottom left, ${GOLD}05 0%, transparent 70%)`, zIndex: 0 }} />
 
         {/* ── Main Content Container ── */}
-        <div style={{ position: 'relative', zIndex: 1, padding: '15mm 22mm', display: 'flex', flexDirection: 'column', minHeight: '297mm' }}>
+        <div style={{ position: 'relative', zIndex: 1, padding: '12mm 22mm 15mm 22mm', display: 'flex', flexDirection: 'column', height: '296.5mm', boxSizing: 'border-box' }}>
           
           {/* Header: Centered Luxury ── */}
           <div style={{ textAlign: 'center', marginBottom: '10mm', borderBottom: `3px double ${GOLD}`, paddingBottom: '6mm' }}>
@@ -509,13 +509,18 @@ function PrintStyles() {
           margin: 0 !important;
           padding: 0 !important;
           -webkit-print-color-adjust: exact;
+          height: 297mm !important;
+          overflow: hidden !important;
+        }
+        * {
+          box-sizing: border-box !important;
         }
         /* Absolute Isolation: Nuke everything else from the DOM flow */
         body > *:not(.prescription-print-active) {
           display: none !important;
         }
         .prescription-print-active {
-          position: fixed !important;
+          position: absolute !important;
           top: 0 !important;
           left: 0 !important;
           width: 210mm !important;
@@ -583,7 +588,7 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
     <div style={{ padding: '0', backgroundColor: '#f5f5f5', minHeight: '100%' }}>
       <div id="prescription-print" style={{ 
         width: '210mm', 
-        minHeight: '297mm', 
+        height: '296.5mm', 
         backgroundColor: '#fff', 
         margin: '0 auto', 
         boxShadow: '0 20px 50px rgba(0,0,0,0.1)',

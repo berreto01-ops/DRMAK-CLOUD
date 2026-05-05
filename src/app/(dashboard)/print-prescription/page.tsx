@@ -327,7 +327,7 @@ export default function PrintPrescriptionPage() {
               const shouldHideBranding = viewingJob.hideBranding !== undefined ? viewingJob.hideBranding : false;
 
               return (
-                <div className="shadow-2xl scale-[0.9] origin-top">
+                <div className="shadow-2xl">
                   <PrescriptionPreview
                     doctorName={viewingJob.doctorName || ''}
                     doctorQualification={viewingJob.doctorQualification || ''}

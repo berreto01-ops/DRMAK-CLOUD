@@ -158,11 +158,11 @@ export default function EPrescriptionPage() {
   const [patientSearch, setPatientSearch] = React.useState('');
   const [chiefComplaint, setChiefComplaint] = React.useState('');
   const [examination, setExamination] = React.useState('');
-  const [investigations, setInvestigations] = React.useState('');
+  const [investigations, setInvestigations] = React.useState<string[]>([]);
   const [diagnosis, setDiagnosis] = React.useState('');
   const [medicines, setMedicines] = React.useState<Medicine[]>([defaultMedicine()]);
   const [advice, setAdvice] = React.useState('');
-  const [procedure, setProcedure] = React.useState('');
+  const [procedure, setProcedure] = React.useState<string[]>([]);
   const [followUpDates, setFollowUpDates] = React.useState<string[]>([]);
   const [newFollowUpDate, setNewFollowUpDate] = React.useState('');
   const [allergies, setAllergies] = React.useState('');
@@ -209,12 +209,12 @@ export default function EPrescriptionPage() {
     setPatientSearch('');
     setChiefComplaint('');
     setExamination('');
-    setInvestigations('');
+    setInvestigations([]);
     setShowOtherInvestigation(false);
     setDiagnosis('');
     setMedicines([defaultMedicine()]);
     setAdvice('');
-    setProcedure('');
+    setProcedure([]);
     setShowOtherProcedure(false);
     setFollowUpDates([]);
     setNewFollowUpDate('');
@@ -240,7 +240,8 @@ export default function EPrescriptionPage() {
   const handleLoadPrescription = (rx: any) => {
     setChiefComplaint(rx.chiefComplaint || '');
     setExamination(rx.examination || '');
-    setInvestigations(rx.investigations || '');
+    const inv = rx.investigations || '';
+    setInvestigations(inv.includes(',') ? inv.split(',').map((s: string) => s.trim()) : (inv ? [inv] : []));
     setShowOtherInvestigation(rx.investigations ? !INVESTIGATION_OPTIONS.includes(rx.investigations) || rx.investigations === "Other" : false);
     setDiagnosis(rx.diagnosis || '');
     setMedicines(rx.medicines && rx.medicines.length > 0 ? rx.medicines.map((m: any) => ({
@@ -248,7 +249,8 @@ export default function EPrescriptionPage() {
       showOther: m.dosage ? !DOSAGE_OPTIONS.includes(m.dosage) || m.dosage === "others" : false
     })) : [defaultMedicine()]);
     setAdvice(rx.advice || '');
-    setProcedure(rx.procedure || '');
+    const proc = rx.procedure || '';
+    setProcedure(proc.includes(',') ? proc.split(',').map((s: string) => s.trim()) : (proc ? [proc] : []));
     setShowOtherProcedure(rx.procedure ? !procedureOptions.includes(rx.procedure) || rx.procedure === "Other" : false);
     setFollowUpDates(rx.followUp || []);
     setAllergies(rx.allergies || '');
@@ -342,10 +344,10 @@ export default function EPrescriptionPage() {
         doctorSpecialization: (linkedDoctor as any)?.specialization || 'Board Certified Dermatologist & Aesthetic Physician',
         chiefComplaint, 
         examination,
-        investigations,
+        investigations: investigations.join(', '),
         diagnosis, 
         medicines, 
-        procedure,
+        procedure: procedure.join(', '),
         advice,
         followUpDates,
         today: format(new Date(), 'dd MMMM yyyy'),
@@ -388,10 +390,10 @@ export default function EPrescriptionPage() {
     patient: selectedPatient, 
     chiefComplaint, 
     examination,
-    investigations,
+    investigations: investigations.join(', '),
     diagnosis, 
     medicines, 
-    procedure,
+    procedure: procedure.join(', '),
     advice, 
     followUpDates, 
     allergies,
@@ -589,41 +591,87 @@ export default function EPrescriptionPage() {
                   <Textarea placeholder="Clinical examination findings..." value={examination} onChange={e => setExamination(e.target.value)} rows={3} />
                 </div>
                 
-                {/* 3. Investigations */}
                 <div className="space-y-3">
                   <Label className="text-primary font-bold">3. Investigations</Label>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {investigations.map((inv, idx) => (
+                      <Badge key={idx} variant="secondary" className="flex items-center gap-1 pl-2.5 pr-1 py-1 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 transition-colors">
+                        {inv}
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-4 w-4 rounded-full p-0 hover:bg-destructive/10 hover:text-destructive" 
+                          onClick={() => setInvestigations(prev => prev.filter((_, i) => i !== idx))}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))}
+                  </div>
+                  
                   <Select 
-                    value={showOtherInvestigation ? "Other" : (INVESTIGATION_OPTIONS.includes(investigations) ? investigations : "")} 
+                    value="" 
                     onValueChange={(val) => {
                       if (val === "Other") {
                         setShowOtherInvestigation(true);
-                        setInvestigations("");
-                      } else {
+                      } else if (val && !investigations.includes(val)) {
+                        setInvestigations(prev => [...prev, val]);
                         setShowOtherInvestigation(false);
-                        setInvestigations(val);
                       }
                     }}
                   >
-                    <SelectTrigger className="w-full h-11 bg-white border-primary/20 focus:ring-primary">
-                      <SelectValue placeholder="Select a test or investigation..." />
+                    <SelectTrigger className="w-full h-11 bg-white border-primary/20 focus:ring-primary shadow-sm">
+                      <SelectValue placeholder="Add a test or investigation..." />
                     </SelectTrigger>
                     <SelectContent>
                       {INVESTIGATION_OPTIONS.map(opt => (
-                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        <SelectItem key={opt} value={opt} disabled={investigations.includes(opt) && opt !== "Other"}>{opt}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
 
                   {showOtherInvestigation && (
                     <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <Label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">Custom Investigation Details</Label>
-                      <Textarea 
-                        placeholder="Enter custom lab tests, imaging, or specific details..." 
-                        value={investigations} 
-                        onChange={e => setInvestigations(e.target.value)} 
-                        rows={3}
-                        className="bg-primary/5 border-primary/20 focus:bg-white transition-colors"
-                      />
+                      <div className="flex items-center justify-between mb-1.5">
+                        <Label className="text-[10px] font-bold text-muted-foreground uppercase">Custom Investigation Details</Label>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 text-[10px] font-bold text-destructive"
+                          onClick={() => setShowOtherInvestigation(false)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Enter custom lab test name..." 
+                          className="bg-primary/5 border-primary/20 focus:bg-white transition-colors h-11"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              const val = (e.target as HTMLInputElement).value.trim();
+                              if (val && !investigations.includes(val)) {
+                                setInvestigations(prev => [...prev, val]);
+                                (e.target as HTMLInputElement).value = '';
+                                setShowOtherInvestigation(false);
+                              }
+                            }
+                          }}
+                        />
+                        <Button 
+                          onClick={(e) => {
+                            const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                            const val = input.value.trim();
+                            if (val && !investigations.includes(val)) {
+                              setInvestigations(prev => [...prev, val]);
+                              input.value = '';
+                              setShowOtherInvestigation(false);
+                            }
+                          }}
+                        >
+                          Add
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -852,41 +900,87 @@ export default function EPrescriptionPage() {
                   <Textarea placeholder="Special advice for the patient..." value={advice} onChange={e => setAdvice(e.target.value)} rows={3} />
                 </div>
 
-                {/* 9. Procedure */}
                 <div className="space-y-3 pt-4 border-t">
-                  <Label className="text-primary font-bold">9. Procedure</Label>
+                  <Label className="text-primary font-bold">9. Procedures</Label>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {procedure.map((proc, idx) => (
+                      <Badge key={idx} variant="secondary" className="flex items-center gap-1 pl-2.5 pr-1 py-1 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 transition-colors">
+                        {proc}
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-4 w-4 rounded-full p-0 hover:bg-destructive/10 hover:text-destructive" 
+                          onClick={() => setProcedure(prev => prev.filter((_, i) => i !== idx))}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))}
+                  </div>
+
                   <Select 
-                    value={showOtherProcedure ? "Other" : (procedureOptions.includes(procedure) ? procedure : "")} 
+                    value="" 
                     onValueChange={(val) => {
                       if (val === "Other") {
                         setShowOtherProcedure(true);
-                        setProcedure("");
-                      } else {
+                      } else if (val && !procedure.includes(val)) {
+                        setProcedure(prev => [...prev, val]);
                         setShowOtherProcedure(false);
-                        setProcedure(val);
                       }
                     }}
                   >
-                    <SelectTrigger className="w-full h-11 bg-white border-primary/20 focus:ring-primary">
-                      <SelectValue placeholder="Select a procedure..." />
+                    <SelectTrigger className="w-full h-11 bg-white border-primary/20 focus:ring-primary shadow-sm">
+                      <SelectValue placeholder="Add a procedure..." />
                     </SelectTrigger>
                     <SelectContent>
                       {procedureOptions.map((opt, idx) => (
-                        <SelectItem key={`${opt}-${idx}`} value={opt}>{opt}</SelectItem>
+                        <SelectItem key={`${opt}-${idx}`} value={opt} disabled={procedure.includes(opt) && opt !== "Other"}>{opt}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
 
                   {showOtherProcedure && (
                     <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <Label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">Custom Procedure Details</Label>
-                      <Textarea 
-                        placeholder="Procedures performed or recommended..." 
-                        value={procedure} 
-                        onChange={e => setProcedure(e.target.value)} 
-                        rows={3} 
-                        className="bg-primary/5 border-primary/20 focus:bg-white transition-colors"
-                      />
+                      <div className="flex items-center justify-between mb-1.5">
+                        <Label className="text-[10px] font-bold text-muted-foreground uppercase">Custom Procedure Details</Label>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 text-[10px] font-bold text-destructive"
+                          onClick={() => setShowOtherProcedure(false)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Enter custom procedure name..." 
+                          className="bg-primary/5 border-primary/20 focus:bg-white transition-colors h-11"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              const val = (e.target as HTMLInputElement).value.trim();
+                              if (val && !procedure.includes(val)) {
+                                setProcedure(prev => [...prev, val]);
+                                (e.target as HTMLInputElement).value = '';
+                                setShowOtherProcedure(false);
+                              }
+                            }
+                          }}
+                        />
+                        <Button 
+                          onClick={(e) => {
+                            const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                            const val = input.value.trim();
+                            if (val && !procedure.includes(val)) {
+                              setProcedure(prev => [...prev, val]);
+                              input.value = '';
+                              setShowOtherProcedure(false);
+                            }
+                          }}
+                        >
+                          Add
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
