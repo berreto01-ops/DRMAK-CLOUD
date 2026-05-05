@@ -76,6 +76,7 @@ import {
   RotateCcw,
   Coins,
   History,
+  Package,
 } from 'lucide-react';
 import {
   collection,
@@ -1244,18 +1245,38 @@ export default function FinancialReportPage() {
             </Card>
       {/* Vendor History Dialog */}
       <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
-          <DialogContent className="sm:max-w-[700px] p-0 overflow-hidden rounded-[2rem] border-none shadow-2xl">
-              <div className="bg-slate-900 p-8 text-white">
-                  <DialogHeader>
-                      <DialogTitle className="text-2xl font-black flex items-center gap-3">
-                          <div className="p-2 bg-indigo-600 rounded-xl">
-                              <History className="h-6 w-6 text-white" />
+          <DialogContent className="sm:max-w-[1200px] p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl">
+              <div className="bg-slate-900 p-10 text-white relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/10 rounded-full -translate-y-32 translate-x-32 blur-3xl" />
+                  <DialogHeader className="relative z-10">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                          <div className="space-y-2">
+                              <DialogTitle className="text-4xl font-black tracking-tighter flex items-center gap-4">
+                                  <div className="p-3 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-900/40">
+                                      <History className="h-8 w-8 text-white" />
+                                  </div>
+                                  {selectedSupplier?.name} <span className="text-indigo-400">Ledger History</span>
+                              </DialogTitle>
+                              <DialogDescription className="text-slate-400 font-bold uppercase text-[10px] tracking-widest flex items-center gap-2">
+                                  <Package className="h-3 w-3" /> {selectedSupplier?.type || 'Vendor'} • Complete Transaction Audit Trail
+                              </DialogDescription>
                           </div>
-                          {selectedSupplier?.name} <span className="text-indigo-400">History</span>
-                      </DialogTitle>
-                      <DialogDescription className="text-slate-400 font-medium">
-                          Complete transaction record and ledger audit.
-                      </DialogDescription>
+                          
+                          {selectedSupplier && (
+                              <div className="flex gap-8 p-4 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm">
+                                  <div className="space-y-1">
+                                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Contact Person</p>
+                                      <p className="text-sm font-bold">{selectedSupplier.contactPerson}</p>
+                                      <p className="text-[10px] text-slate-400">{selectedSupplier.phone}</p>
+                                  </div>
+                                  <div className="space-y-1 border-l border-white/10 pl-8">
+                                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Location</p>
+                                      <p className="text-sm font-bold">{selectedSupplier.city}</p>
+                                      <p className="text-[10px] text-slate-400 truncate max-w-[200px]">{selectedSupplier.address}</p>
+                                  </div>
+                              </div>
+                          )}
+                      </div>
                   </DialogHeader>
               </div>
 
@@ -1291,7 +1312,9 @@ export default function FinancialReportPage() {
                                   <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest">Date</TableHead>
                                   <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest">Type</TableHead>
                                   <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest">Reference</TableHead>
+                                  <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest">Details / Notes</TableHead>
                                   <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest text-right">Amount</TableHead>
+                                  <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest text-right">Logged By</TableHead>
                               </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1314,28 +1337,45 @@ export default function FinancialReportPage() {
                                       })
                                       .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                                       .map((tx, i) => (
-                                          <TableRow key={i} className="border-slate-50 h-14">
-                                              <TableCell className="font-bold text-slate-600 text-xs">{tx.date}</TableCell>
-                                              <TableCell>
-                                                  <Badge variant="outline" className={cn(
-                                                      "text-[10px] font-black uppercase px-2 py-0",
-                                                      tx.type === 'Bill' ? "text-amber-600 border-amber-200 bg-amber-50" : "text-emerald-600 border-emerald-200 bg-emerald-50"
-                                                  )}>
-                                                      {tx.type}
-                                                  </Badge>
-                                              </TableCell>
-                                              <TableCell className="text-[10px] font-bold text-slate-400">{tx.reference || '-'}</TableCell>
-                                              <TableCell className={cn(
-                                                  "text-right font-black",
-                                                  tx.type === 'Bill' ? "text-amber-600" : "text-emerald-600"
-                                              )}>
-                                                  {tx.type === 'Bill' ? '+' : '-'} Rs {tx.amount.toLocaleString()}
-                                              </TableCell>
-                                          </TableRow>
+                                           <TableRow key={i} className="border-slate-50 h-14">
+                                               <TableCell className="font-bold text-slate-600 text-xs">{tx.date}</TableCell>
+                                               <TableCell>
+                                                   <Badge variant="outline" className={cn(
+                                                       "text-[10px] font-black uppercase px-2 py-0",
+                                                       tx.type === 'Bill' ? "text-amber-600 border-amber-200 bg-amber-50" : "text-emerald-600 border-emerald-200 bg-emerald-50"
+                                                   )}>
+                                                       {tx.type === 'Bill' ? 'Stock Bill' : 'Cash Paid'}
+                                                   </Badge>
+                                               </TableCell>
+                                               <TableCell className="text-xs text-muted-foreground font-medium">{tx.reference || '-'}</TableCell>
+                                               <TableCell>
+                                                   <div className="flex flex-col gap-2 py-2">
+                                                       {tx.medicines && tx.medicines.length > 0 && (
+                                                           <div className="flex flex-wrap gap-1.5">
+                                                               {tx.medicines.map(m => (
+                                                                   <Badge key={m} variant="secondary" className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-700 border-none font-black uppercase tracking-tight">
+                                                                       {m}
+                                                                   </Badge>
+                                                               ))}
+                                                           </div>
+                                                       )}
+                                                       <p className="text-xs font-medium text-slate-500 leading-relaxed max-w-[500px]">
+                                                           {tx.notes || (tx.medicines?.length ? '' : '-')}
+                                                       </p>
+                                                   </div>
+                                               </TableCell>
+                                               <TableCell className={cn(
+                                                   "text-right font-black",
+                                                   tx.type === 'Bill' ? "text-amber-600" : "text-emerald-600"
+                                               )}>
+                                                   {tx.type === 'Bill' ? '+' : '-'} Rs {tx.amount.toLocaleString()}
+                                               </TableCell>
+                                               <TableCell className="text-right text-xs font-bold text-slate-500">{tx.addedBy || 'System'}</TableCell>
+                                           </TableRow>
                                       ))
                               ) : (
                                   <TableRow>
-                                      <TableCell colSpan={4} className="h-32 text-center text-slate-400 font-bold uppercase text-[10px] tracking-widest opacity-50">
+                                      <TableCell colSpan={6} className="h-32 text-center text-slate-400 font-bold uppercase text-[10px] tracking-widest opacity-50">
                                           No transactions found for this vendor
                                       </TableCell>
                                   </TableRow>

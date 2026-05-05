@@ -512,6 +512,7 @@ export type VendorTransaction = {
   date: string;
   reference?: string; // Bill Number or Payment Ref
   notes?: string;
+  medicines?: string[]; // List of medicines involved
   addedBy: string;
   createdAt: string;
 };

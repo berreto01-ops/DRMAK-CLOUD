@@ -141,6 +141,7 @@ export default function SupplierPage() {
         date: new Date().toISOString().split('T')[0],
         reference: '',
         notes: '',
+        medicines: [],
         addedBy: '',
     });
     const transactionsRef = useMemoFirebase(
@@ -722,6 +723,7 @@ export default function SupplierPage() {
                                             date: new Date().toISOString().split('T')[0],
                                             reference: '',
                                             notes: '',
+                                            medicines: [],
                                             addedBy: user?.name || 'Operations Manager',
                                         });
                                         setTxDialogOpen(true);
@@ -737,6 +739,7 @@ export default function SupplierPage() {
                                                 <TableHead>Supplier</TableHead>
                                                 <TableHead>Type</TableHead>
                                                 <TableHead>Reference</TableHead>
+                                                <TableHead>Notes</TableHead>
                                                 <TableHead className="text-right">Amount</TableHead>
                                                 <TableHead>Logged By</TableHead>
                                                 <TableHead className="text-right">Actions</TableHead>
@@ -750,10 +753,26 @@ export default function SupplierPage() {
                                                         <TableCell className="font-bold">{tx.supplierName}</TableCell>
                                                         <TableCell>
                                                             <Badge variant="outline" className={tx.type === 'Bill' ? "text-amber-600 border-amber-200 bg-amber-50" : "text-emerald-600 border-emerald-200 bg-emerald-50"}>
-                                                                {tx.type}
+                                                                {tx.type === 'Bill' ? 'Stock Bill' : 'Cash Paid'}
                                                             </Badge>
                                                         </TableCell>
                                                         <TableCell className="text-xs text-muted-foreground">{tx.reference || '-'}</TableCell>
+                                                         <TableCell>
+                                                             <div className="flex flex-col gap-2 py-1">
+                                                                 {tx.medicines && tx.medicines.length > 0 && (
+                                                                     <div className="flex flex-wrap gap-1">
+                                                                         {tx.medicines.map(m => (
+                                                                             <Badge key={m} variant="secondary" className="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-700 border-none font-black uppercase tracking-tight">
+                                                                                 {m}
+                                                                             </Badge>
+                                                                         ))}
+                                                                     </div>
+                                                                 )}
+                                                                 <p className="text-xs font-medium text-slate-500 leading-relaxed max-w-[400px]">
+                                                                     {tx.notes || (tx.medicines?.length ? '' : '-')}
+                                                                 </p>
+                                                             </div>
+                                                         </TableCell>
                                                         <TableCell className={cn("text-right font-black", tx.type === 'Bill' ? "text-amber-600" : "text-emerald-600")}>
                                                             {tx.type === 'Bill' ? '+' : '-'} PKR {tx.amount.toLocaleString()}
                                                         </TableCell>
@@ -774,6 +793,7 @@ export default function SupplierPage() {
                                                                             date: tx.date,
                                                                             reference: tx.reference || '',
                                                                             notes: tx.notes || '',
+                                                                            medicines: tx.medicines || [],
                                                                             addedBy: tx.addedBy,
                                                                         });
                                                                         setTxDialogOpen(true);
@@ -795,7 +815,7 @@ export default function SupplierPage() {
                                                 ))
                                             ) : (
                                                 <TableRow>
-                                                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">No transactions logged yet.</TableCell>
+                                                    <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">No transactions logged yet.</TableCell>
                                                 </TableRow>
                                             )}
                                         </TableBody>
@@ -1241,8 +1261,8 @@ export default function SupplierPage() {
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Bill" className="font-bold text-amber-600">Bill (+ Debt)</SelectItem>
-                                        <SelectItem value="Payment" className="font-bold text-emerald-600">Payment (- Debt)</SelectItem>
+                                        <SelectItem value="Bill" className="font-bold text-amber-600">Stock Bill (+ Debt)</SelectItem>
+                                        <SelectItem value="Payment" className="font-bold text-emerald-600">Cash Paid (- Debt)</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -1276,6 +1296,71 @@ export default function SupplierPage() {
                                 value={txFormData.reference}
                                 onChange={e => setTxFormData(prev => ({ ...prev, reference: e.target.value }))}
                             />
+                        </div>
+
+                        {/* Medicine Selector */}
+                        <div className="space-y-3 p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                            <Label className="text-[10px] font-black uppercase text-slate-500 ml-1 flex items-center gap-2">
+                                <Package className="h-3 w-3" /> Linked Medicines
+                            </Label>
+                            
+                            {txFormData.supplierId ? (
+                                <div className="space-y-3">
+                                    <div className="flex flex-wrap gap-1.5 min-h-[40px] p-2 bg-white rounded-xl border border-dashed border-slate-200">
+                                        {txFormData.medicines?.length === 0 ? (
+                                            <p className="text-[10px] text-slate-400 italic m-auto">No medicines selected</p>
+                                        ) : (
+                                            txFormData.medicines?.map(med => (
+                                                <Badge key={med} className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-100 gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all">
+                                                    {med}
+                                                    <button 
+                                                        onClick={() => setTxFormData(prev => ({ 
+                                                            ...prev, 
+                                                            medicines: prev.medicines?.filter(m => m !== med) 
+                                                        }))}
+                                                        className="hover:text-indigo-900 ml-1"
+                                                    >
+                                                        <XCircle className="h-3 w-3" />
+                                                    </button>
+                                                </Badge>
+                                            ))
+                                        )}
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 gap-1 max-h-[120px] overflow-y-auto pr-1 custom-scrollbar">
+                                        {suppliers?.find(s => s.id === txFormData.supplierId)?.products?.map(p => {
+                                            const isSelected = txFormData.medicines?.includes(p.name);
+                                            return (
+                                                <div 
+                                                    key={p.id}
+                                                    onClick={() => {
+                                                        if (isSelected) {
+                                                            setTxFormData(prev => ({ ...prev, medicines: prev.medicines?.filter(m => m !== p.name) }));
+                                                        } else {
+                                                            setTxFormData(prev => ({ ...prev, medicines: [...(prev.medicines || []), p.name] }));
+                                                        }
+                                                    }}
+                                                    className={cn(
+                                                        "flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all text-xs font-bold",
+                                                        isSelected ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" : "hover:bg-indigo-50 text-slate-600"
+                                                    )}
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <Plus className={cn("h-3 w-3", isSelected ? "rotate-45" : "")} />
+                                                        {p.name}
+                                                    </div>
+                                                    {isSelected && <CheckCircle2 className="h-3 w-3" />}
+                                                </div>
+                                            );
+                                        })}
+                                        {(suppliers?.find(s => s.id === txFormData.supplierId)?.products?.length || 0) === 0 && (
+                                            <p className="text-[10px] text-center text-muted-foreground py-2">This supplier has no products listed.</p>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-[10px] text-center text-muted-foreground py-2 bg-white rounded-xl border border-dashed italic">Please select a supplier first to link medicines.</p>
+                            )}
                         </div>
 
                         <div className="space-y-2">
