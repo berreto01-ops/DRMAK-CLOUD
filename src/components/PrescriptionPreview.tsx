@@ -704,14 +704,14 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
               color: INK
             }}>
               {/* Name - Height adjusted for template alignment */}
-              <div style={{ height: '8mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm', paddingLeft: '45mm' }}>{p.patient?.name}</div>
+              <div style={{ height: '8mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '4.5mm', paddingLeft: '45mm' }}>{p.patient?.name}</div>
               {/* Age - Height adjusted to skip to next line */}
-              <div style={{ height: '20mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm', paddingLeft: '45mm' }}>{p.prescriptionAge ? `${p.prescriptionAge} Years` : ''}</div>
+              <div style={{ height: '20mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '4.5mm', paddingLeft: '45mm' }}>{p.prescriptionAge ? `${p.prescriptionAge} Years` : ''}</div>
               {/* Sex - Height adjusted to skip to next line */}
-              <div style={{ height: '22mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm', paddingLeft: '45mm' }}>{p.prescriptionGender || p.patient?.gender}</div>
+              <div style={{ height: '22mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '4.5mm', paddingLeft: '45mm' }}>{p.prescriptionGender || p.patient?.gender}</div>
               <div style={{ height: '4mm' }}></div> 
               {/* Date - Height adjusted to skip to next line */}
-              <div style={{ height: '17mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm', paddingLeft: '45mm' }}>{p.today}</div>
+              <div style={{ height: '17mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '4.5mm', paddingLeft: '45mm' }}>{p.today}</div>
             </div>
 
             {shouldSpillOver && (

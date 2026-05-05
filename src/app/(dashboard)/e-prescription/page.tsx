@@ -84,6 +84,32 @@ const DOSAGE_OPTIONS = [
   "others"
 ];
 
+const DOSAGE_FREQUENCY_MAP: Record<string, string[]> = {
+  serum: ["AM", "PM", "Afternoon"],
+  cream: ["AM", "PM", "Afternoon"],
+  ointment: ["Once a day", "Twice a day"],
+  sachet: ["Once a day", "Twice a day", "Thrice a day"],
+  shots: ["Once a day", "Twice a day", "Thrice a day"],
+  lotion: ["AM", "PM", "Afternoon"],
+  shampoos: ["Once a week", "Twice a week", "Thrice a week"],
+  facewash: ["AM", "PM", "Afternoon", "Once a day", "Twice a day", "Thrice a day"],
+  soap: ["AM", "PM", "Afternoon", "Once a day", "Twice a day", "Thrice a day"],
+  sprays: ["Apply over scalp once a day", "Twice a day", "At night"],
+  sunblock: ["Apply 20 min before going out in sun and repeat after every 2 hours"],
+  cleanser: ["AM", "PM", "Afternoon", "Once a day", "Twice a day", "Thrice a day"],
+};
+
+const DEFAULT_FREQUENCIES = [
+  { value: "OD", label: "OD — Once a day" },
+  { value: "BD", label: "BD — Twice a day" },
+  { value: "TDS", label: "TDS — Three times a day" },
+  { value: "QID", label: "QID — Four times a day" },
+  { value: "SOS", label: "SOS — As needed" },
+  { value: "HS", label: "HS — At bedtime" },
+  { value: "Stat", label: "Stat — Immediately" },
+  { value: "Weekly", label: "Weekly" },
+];
+
 const defaultMedicine = (): Medicine => ({
   id: uuidv4(),
   name: '',
@@ -261,8 +287,33 @@ export default function EPrescriptionPage() {
     return patients.filter(p => p.name?.toLowerCase().includes(term) || p.mobileNumber?.includes(term)).slice(0, 200);
   }, [patients, patientSearch]);
 
-  const handleMedicineChange = (id: string, field: keyof Medicine, value: string) => {
-    setMedicines(prev => prev.map(m => m.id === id ? { ...m, [field]: value } : m));
+  const updateMedicine = (id: string, updates: Partial<Medicine>) => {
+    setMedicines(prev => prev.map(m => {
+      if (m.id === id) {
+        const updated = { ...m, ...updates };
+        
+        // Handle dynamic frequency logic when dosage changes
+        if (updates.dosage !== undefined) {
+          const dosageKey = updates.dosage.toLowerCase();
+          const customOptions = DOSAGE_FREQUENCY_MAP[dosageKey];
+          
+          if (customOptions && customOptions.length > 0) {
+            // If we have custom frequencies for this dosage and current frequency isn't one of them, reset
+            if (!customOptions.includes(updated.frequency)) {
+              updated.frequency = customOptions[0];
+            }
+          } else {
+            // For other dosages (like tablet), ensure frequency is one of the defaults
+            const defaultValues = DEFAULT_FREQUENCIES.map(f => f.value);
+            if (!defaultValues.includes(updated.frequency)) {
+              updated.frequency = 'OD';
+            }
+          }
+        }
+        return updated;
+      }
+      return m;
+    }));
   };
 
   const handlePrint = () => {
@@ -616,8 +667,7 @@ export default function EPrescriptionPage() {
                                 placeholder="Search or enter medicine name..." 
                                 value={med.name} 
                                 onChange={e => {
-                                  handleMedicineChange(med.id, 'name', e.target.value);
-                                  handleMedicineChange(med.id, 'pharmacyItemId', ''); 
+                                  updateMedicine(med.id, { name: e.target.value, pharmacyItemId: '' });
                                 }} 
                               />
                               {!med.pharmacyItemId && (
@@ -665,10 +715,12 @@ export default function EPrescriptionPage() {
                                         className="px-3 py-2 hover:bg-muted cursor-pointer flex flex-col border-b last:border-0"
                                         onMouseDown={(e) => {
                                           e.preventDefault();
-                                          handleMedicineChange(med.id, 'name', p.productName || p.name);
-                                          handleMedicineChange(med.id, 'pharmacyItemId', p.id);
-                                          handleMedicineChange(med.id, 'genericName', p.genericName || '');
-                                          if (p.unit) handleMedicineChange(med.id, 'dosage', `1 ${p.unit}`);
+                                          updateMedicine(med.id, {
+                                            name: p.productName || p.name,
+                                            pharmacyItemId: p.id,
+                                            genericName: p.genericName || '',
+                                            ...(p.unit ? { dosage: `1 ${p.unit}` } : {})
+                                          });
                                         }}
                                       >
                                         <div className="flex justify-between items-start">
@@ -705,7 +757,7 @@ export default function EPrescriptionPage() {
                                         className="px-4 py-6 text-center border-t border-dashed hover:bg-amber-50/50 cursor-pointer transition-colors"
                                         onMouseDown={(e) => {
                                           e.preventDefault();
-                                          handleMedicineChange(med.id, 'pharmacyItemId', 'manual');
+                                          updateMedicine(med.id, { pharmacyItemId: 'manual' });
                                         }}
                                       >
                                         <div className="flex justify-center mb-2">
@@ -737,11 +789,9 @@ export default function EPrescriptionPage() {
                                 value={med.showOther ? "others" : (DOSAGE_OPTIONS.includes(med.dosage) ? med.dosage : "")} 
                                 onValueChange={val => {
                                   if (val === "others") {
-                                    handleMedicineChange(med.id, 'showOther', true);
-                                    handleMedicineChange(med.id, 'dosage', '');
+                                    updateMedicine(med.id, { showOther: true, dosage: '' });
                                   } else {
-                                    handleMedicineChange(med.id, 'showOther', false);
-                                    handleMedicineChange(med.id, 'dosage', val);
+                                    updateMedicine(med.id, { showOther: false, dosage: val });
                                   }
                                 }}
                               >
@@ -759,7 +809,7 @@ export default function EPrescriptionPage() {
                                 <Input 
                                   placeholder="Specify dosage..." 
                                   value={med.dosage} 
-                                  onChange={e => handleMedicineChange(med.id, 'dosage', e.target.value)} 
+                                  onChange={e => updateMedicine(med.id, { dosage: e.target.value })} 
                                   className="h-8 text-xs animate-in fade-in slide-in-from-top-1 duration-200"
                                 />
                               )}
@@ -767,27 +817,28 @@ export default function EPrescriptionPage() {
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Frequency</Label>
-                            <Select value={med.frequency} onValueChange={val => handleMedicineChange(med.id, 'frequency', val)}>
+                            <Select value={med.frequency} onValueChange={val => updateMedicine(med.id, { frequency: val })}>
                               <SelectTrigger><SelectValue /></SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="OD">OD — Once a day</SelectItem>
-                                <SelectItem value="BD">BD — Twice a day</SelectItem>
-                                <SelectItem value="TDS">TDS — Three times a day</SelectItem>
-                                <SelectItem value="QID">QID — Four times a day</SelectItem>
-                                <SelectItem value="SOS">SOS — As needed</SelectItem>
-                                <SelectItem value="HS">HS — At bedtime</SelectItem>
-                                <SelectItem value="Stat">Stat — Immediately</SelectItem>
-                                <SelectItem value="Weekly">Weekly</SelectItem>
+                                {DOSAGE_FREQUENCY_MAP[med.dosage] ? (
+                                  DOSAGE_FREQUENCY_MAP[med.dosage].map(opt => (
+                                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                  ))
+                                ) : (
+                                  DEFAULT_FREQUENCIES.map(opt => (
+                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                  ))
+                                )}
                               </SelectContent>
                             </Select>
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Duration</Label>
-                            <Input placeholder="e.g., 7 days" value={med.duration} onChange={e => handleMedicineChange(med.id, 'duration', e.target.value)} />
+                            <Input placeholder="e.g., 7 days" value={med.duration} onChange={e => updateMedicine(med.id, { duration: e.target.value })} />
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Special Instructions</Label>
-                            <Input placeholder="e.g., After meals" value={med.instructions} onChange={e => handleMedicineChange(med.id, 'instructions', e.target.value)} />
+                            <Input placeholder="e.g., After meals" value={med.instructions} onChange={e => updateMedicine(med.id, { instructions: e.target.value })} />
                           </div>
                         </div>
                       </div>
