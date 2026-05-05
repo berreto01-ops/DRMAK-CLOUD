@@ -33,6 +33,7 @@ type Medicine = {
   instructions: string;
   pharmacyItemId?: string;
   genericName?: string;
+  showOther?: boolean;
 };
 
 type Vital = {
@@ -66,13 +67,31 @@ const INVESTIGATION_OPTIONS = [
   "Other"
 ];
 
+const DOSAGE_OPTIONS = [
+  "tablet",
+  "serum",
+  "cream",
+  "ointment",
+  "sachet",
+  "shots",
+  "lotion",
+  "shampoos",
+  "facewash",
+  "soap",
+  "sprays",
+  "sunblock",
+  "cleanser",
+  "others"
+];
+
 const defaultMedicine = (): Medicine => ({
   id: uuidv4(),
   name: '',
-  dosage: '1 tablet',
+  dosage: 'tablet',
   frequency: 'OD',
   duration: '7 days',
   instructions: '',
+  showOther: false
 });
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -198,7 +217,10 @@ export default function EPrescriptionPage() {
     setInvestigations(rx.investigations || '');
     setShowOtherInvestigation(rx.investigations ? !INVESTIGATION_OPTIONS.includes(rx.investigations) || rx.investigations === "Other" : false);
     setDiagnosis(rx.diagnosis || '');
-    setMedicines(rx.medicines && rx.medicines.length > 0 ? rx.medicines : [defaultMedicine()]);
+    setMedicines(rx.medicines && rx.medicines.length > 0 ? rx.medicines.map((m: any) => ({
+      ...m,
+      showOther: m.dosage ? !DOSAGE_OPTIONS.includes(m.dosage) || m.dosage === "others" : false
+    })) : [defaultMedicine()]);
     setAdvice(rx.advice || '');
     setProcedure(rx.procedure || '');
     setShowOtherProcedure(rx.procedure ? !procedureOptions.includes(rx.procedure) || rx.procedure === "Other" : false);
@@ -710,7 +732,38 @@ export default function EPrescriptionPage() {
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Dosage</Label>
-                            <Input placeholder="e.g., 1 tablet" value={med.dosage} onChange={e => handleMedicineChange(med.id, 'dosage', e.target.value)} />
+                            <div className="space-y-2">
+                              <Select 
+                                value={med.showOther ? "others" : (DOSAGE_OPTIONS.includes(med.dosage) ? med.dosage : "")} 
+                                onValueChange={val => {
+                                  if (val === "others") {
+                                    handleMedicineChange(med.id, 'showOther', true);
+                                    handleMedicineChange(med.id, 'dosage', '');
+                                  } else {
+                                    handleMedicineChange(med.id, 'showOther', false);
+                                    handleMedicineChange(med.id, 'dosage', val);
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="h-9">
+                                  <SelectValue placeholder="Select type..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {DOSAGE_OPTIONS.map(opt => (
+                                    <SelectItem key={opt} value={opt} className="capitalize">{opt}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              
+                              {med.showOther && (
+                                <Input 
+                                  placeholder="Specify dosage..." 
+                                  value={med.dosage} 
+                                  onChange={e => handleMedicineChange(med.id, 'dosage', e.target.value)} 
+                                  className="h-8 text-xs animate-in fade-in slide-in-from-top-1 duration-200"
+                                />
+                              )}
+                            </div>
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Frequency</Label>

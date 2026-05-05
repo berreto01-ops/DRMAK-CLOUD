@@ -89,6 +89,7 @@ import {
 import type { BillingRecord, Patient, Doctor, Supplier, SocialCost, SocialROAS, VendorTransaction } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { DatePickerWithRange } from '@/components/DatePickerWithRange';
+import { useToast } from '@/hooks/use-toast';
 import {
   Select,
   SelectTrigger,
@@ -122,6 +123,7 @@ import {
 
 export default function FinancialReportPage() {
   const firestore = useFirestore();
+  const { toast } = useToast();
   const [selectedRange, setSelectedRange] = React.useState<DateRange | undefined>({
     from: new Date(),
     to: new Date(),
@@ -1107,7 +1109,7 @@ export default function FinancialReportPage() {
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-1">EBITDA Margin</p>
-                                                <h4 className="text-4xl font-black text-indigo-400">{strategicMetrics?.ebitdaMargin.toFixed(1)}%</h4>
+                                                <h4 className="text-4xl font-black text-indigo-400">{(strategicMetrics?.ebitdaMargin || 0).toFixed(1)}%</h4>
                                             </div>
                                         </div>
 
