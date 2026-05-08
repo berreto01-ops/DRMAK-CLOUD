@@ -698,7 +698,7 @@ export default function EPrescriptionPage() {
                 <div className="space-y-3 pt-4 border-t">
                   <div className="flex items-center justify-between">
                     <Label className="text-primary font-bold">7. Treatment (Medicines)</Label>
-                    <Button size="sm" variant="outline" onClick={() => setMedicines(prev => [...prev, defaultMedicine()])}><PlusCircle className="mr-2 h-4 w-4" />Add Medicine</Button>
+                    <Button size="sm" variant="outline" onClick={() => setMedicines(prev => [defaultMedicine(), ...prev])}><PlusCircle className="mr-2 h-4 w-4" />Add Medicine</Button>
                   </div>
                   <div className="space-y-4 mt-2">
                     {medicines.map((med, index) => (
