@@ -405,6 +405,23 @@ function DigitalLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>) {
 function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>) {
   const namedMeds = p.medicines.filter(m => m.name);
   const leftColRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const [procedureOverflows, setProcedureOverflows] = useState(false);
+
+  useLayoutEffect(() => {
+    if (!sidebarRef.current || !p.procedure) {
+      setProcedureOverflows(false);
+      return;
+    }
+    const pageEl = sidebarRef.current.closest('#prescription-print') as HTMLElement;
+    if (!pageEl) return;
+    const pageRect = pageEl.getBoundingClientRect();
+    const sidebarRect = sidebarRef.current.getBoundingClientRect();
+    // 35mm footer buffer in px (1mm ≈ 3.7795px at 96dpi)
+    const footerPx = 35 * 3.7795;
+    setProcedureOverflows(sidebarRect.bottom > pageRect.bottom - footerPx);
+  }, [p.procedure, p.allergies, p.coMorbids, p.advice, p.followUpDates]);
+
 
   return (
     <div style={{ padding: '0', backgroundColor: '#f5f5f5', minHeight: '100%' }}>
@@ -466,23 +483,23 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
             flex: 1
           }}>
             {/* Left Column: Clinical Notes */}
-            <div style={{ display: 'flex', flexDirection: 'column', paddingRight: '15mm', marginLeft: '-13mm', paddingTop: '20mm' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', paddingRight: '15mm', marginLeft: '-13mm', paddingTop: '20mm', minWidth: 0 }}>
               {p.chiefComplaint && (
                 <div style={{ marginBottom: '20mm' }}>
                   <div style={{ fontSize: '9.5pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1.5mm' }}>Chief Complaints:</div>
-                  <div style={{ fontSize: '10.5pt', lineHeight: 1.4, whiteSpace: 'pre-line', color: '#333' }}>{p.chiefComplaint}</div>
+                  <div style={{ fontSize: '10.5pt', lineHeight: 1.4, whiteSpace: 'pre-line', color: '#333', wordBreak: 'break-word', overflowWrap: 'break-word' }}>{p.chiefComplaint}</div>
                 </div>
               )}
               {p.examination && (
                 <div style={{ marginBottom: '20mm' }}>
                   <div style={{ fontSize: '11pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1.5mm' }}>Examination:</div>
-                  <div style={{ fontSize: '10.5pt', lineHeight: 1.4, whiteSpace: 'pre-line', color: '#333' }}>{p.examination}</div>
+                  <div style={{ fontSize: '10.5pt', lineHeight: 1.4, whiteSpace: 'pre-line', color: '#333', wordBreak: 'break-word', overflowWrap: 'break-word' }}>{p.examination}</div>
                 </div>
               )}
               {p.investigations && (
                 <div style={{ marginBottom: '20mm' }}>
                   <div style={{ fontSize: '11pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1.5mm' }}>Investigations:</div>
-                  <div style={{ fontSize: '10.5pt', lineHeight: 1.4, whiteSpace: 'pre-line', color: '#333' }}>{p.investigations}</div>
+                  <div style={{ fontSize: '10.5pt', lineHeight: 1.4, whiteSpace: 'pre-line', color: '#333', wordBreak: 'break-word', overflowWrap: 'break-word' }}>{p.investigations}</div>
                 </div>
               )}
             </div>
@@ -492,14 +509,14 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
               {/* Diagnosis & Treatment */}
               {p.diagnosis && (
                 <div style={{ marginTop: '10mm', marginBottom: '8mm' }}>
-                  <div style={{ fontSize: '18pt', fontWeight: 900, color: GOLD, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '2mm' }}>Diagnosis:</div>
-                  <div style={{ fontSize: '14pt', fontWeight: 900, whiteSpace: 'pre-line', color: INK, lineHeight: 1.4 }}>{p.diagnosis}</div>
+                  <div style={{ fontSize: '18pt', fontWeight: 900, color: GOLD, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '2mm', marginLeft: '2mm' }}>Diagnosis:</div>
+                  <div style={{ fontSize: '14pt', fontWeight: 900, whiteSpace: 'pre-line', color: INK, lineHeight: 1.4, marginLeft: '2mm' }}>{p.diagnosis}</div>
                 </div>
               )}
 
               {namedMeds.length > 0 && (
                 <div style={{ marginTop: '2mm', marginBottom: '8mm' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6mm' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6mm', marginLeft: '2mm' }}>
                     <span style={{ fontSize: '28pt', fontWeight: 900, color: GOLD, fontFamily: 'serif', marginRight: '4mm', lineHeight: 1 }}>℞</span>
                     <span style={{ fontSize: '18pt', fontWeight: 900, color: GOLD, textTransform: 'uppercase', letterSpacing: '2px' }}>Treatment Plan</span>
                   </div>
@@ -524,14 +541,22 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
                 </div>
               )}
 
+              {/* Overflow Procedures — rendered here when sidebar overflows page */}
+              {procedureOverflows && p.procedure && (
+                <div style={{ marginTop: '6mm', marginLeft: '2mm' }}>
+                  <div style={{ fontSize: '11pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2mm' }}>Procedures:</div>
+                  <div style={{ fontSize: '11pt', lineHeight: 1.6, color: INK, fontWeight: 400, paddingLeft: '4mm', wordBreak: 'break-word', overflowWrap: 'break-word' }}>{p.procedure}</div>
+                </div>
+              )}
+
           </div> {/* Close Main Column */}
         </div> {/* Close Grid */}
         </div> {/* Close Content Wrapper */}
 
         {/* Secondary Group: Absolutely positioned to prevent squeezing */}
-        <div style={{ 
+        <div ref={sidebarRef} style={{ 
           position: 'absolute',
-          left: '173mm',
+          left: '166mm',
           top: '82mm',
           width: '30mm',
           display: 'flex', 
@@ -561,7 +586,7 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
               <div style={{ fontSize: '11pt', lineHeight: 1.6, whiteSpace: 'pre-line', color: '#444', fontStyle: 'italic', fontWeight: 400 }}>{p.advice}</div>
             </div>
           )}
-          {p.procedure && (
+          {!procedureOverflows && p.procedure && (
             <div>
               <div style={{ fontSize: '11pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2mm' }}>Procedures:</div>
               <div style={{ fontSize: '11pt', lineHeight: 1.6, color: INK, fontWeight: 400 }}>{p.procedure}</div>
