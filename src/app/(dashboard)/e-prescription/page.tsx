@@ -28,6 +28,7 @@ type Medicine = {
   id: string;
   name: string;
   dosage: string;
+  frequencyCategory: string;
   frequency: string;
   duration: string;
   instructions: string;
@@ -79,52 +80,200 @@ const FALLBACK_PROCEDURES = [
 
 const DOSAGE_OPTIONS = [
   "tablet",
-  "serum",
+  "capsule",
+  "syrup",
   "cream",
   "ointment",
-  "sachet",
-  "shots",
+  "gel",
+  "serum",
   "lotion",
-  "shampoos",
   "facewash",
   "soap",
+  "shampoos",
+  "sachet",
+  "shots",
+  "injection",
   "sprays",
   "sunblock",
   "cleanser",
   "others"
 ];
 
-const DOSAGE_FREQUENCY_MAP: Record<string, string[]> = {
-  serum: ["AM", "PM", "Afternoon"],
-  cream: ["AM", "PM", "Afternoon"],
-  ointment: ["Once a day", "Twice a day"],
-  sachet: ["Once a day", "Twice a day", "Thrice a day"],
-  shots: ["Once a day", "Twice a day", "Thrice a day"],
-  lotion: ["AM", "PM", "Afternoon"],
-  shampoos: ["Once a week", "Twice a week", "Thrice a week"],
-  facewash: ["AM", "PM", "Afternoon", "Once a day", "Twice a day", "Thrice a day"],
-  soap: ["AM", "PM", "Afternoon", "Once a day", "Twice a day", "Thrice a day"],
-  sprays: ["Apply over scalp once a day", "Twice a day", "At night"],
-  sunblock: ["Apply 20 min before going out in sun and repeat after every 2 hours"],
-  cleanser: ["AM", "PM", "Afternoon", "Once a day", "Twice a day", "Thrice a day"],
+const ORAL_FREQUENCIES = [
+  'Once daily',
+  'Twice daily',
+  'Three times daily',
+  'Four times daily',
+  'Every morning',
+  'Every night',
+  'Every 12 hours',
+  'Every 8 hours',
+  'Every 6 hours',
+  'After meals',
+  'Before meals',
+  'With food',
+  'Empty stomach',
+  'As needed (SOS/PRN)',
+  'At bedtime',
+  'Alternate days',
+  'Weekly',
+  'Monthly',
+];
+
+const FREQUENCY_CATEGORIES: Record<string, string[]> = {
+  'Tablets': [
+    "Take 1 tablet once daily",
+    "Take 1 tablet twice daily",
+    "Take after meals",
+    "Take before meals",
+    "Take after dinner",
+    "Take at bedtime",
+    "Take on alternate days",
+    "Take once weekly",
+    "Take with plenty of water",
+    "Avoid sunlight while taking",
+    "Complete full course as advised",
+    ...ORAL_FREQUENCIES
+  ],
+  'Capsules': [
+    "Take 1 capsule once daily",
+    "Take 1 capsule twice daily",
+    "Take after food",
+    "Take before breakfast",
+    "Take with a full glass of water",
+    "Do not lie down for 30 minutes after taking",
+    "Avoid dairy near dose timing",
+    "Use sunscreen regularly",
+    ...ORAL_FREQUENCIES
+  ],
+  'Syrups': [
+    "Take 5 mL once daily",
+    "Take 5 mL twice daily",
+    "Take 10 mL at bedtime",
+    "Shake well before use",
+    "Take after meals",
+    "Measure with provided cup/spoon",
+    ...ORAL_FREQUENCIES
+  ],
+  'Creams': [
+    "Apply thin layer over affected area",
+    "Apply twice daily",
+    "Apply once nightly",
+    "Apply after washing face",
+    "Avoid eye area",
+    "Use sunscreen in daytime",
+  ],
+  'Ointments': [
+    "Apply locally over affected area",
+    "Apply thick layer at night",
+    "Use twice daily",
+    "Apply on dry patches only",
+    "Cover with dressing if advised",
+  ],
+  'Gels': [
+    "Apply thin layer once daily",
+    "Apply over acne-prone areas",
+    "Apply at night only",
+    "Use on clean dry skin",
+    "Avoid eyes and lips",
+    "Start on alternate nights",
+    "Allow gel to dry completely",
+  ],
+  'Serums': [
+    "Apply 2–3 drops nightly",
+    "Apply after cleansing",
+    "Use before moisturizer",
+    "Apply on dry skin only",
+    "Avoid direct sunlight after use",
+    "Start on alternate nights",
+  ],
+  'Lotions': [
+    "Apply generously over body",
+    "Apply twice daily",
+    "Use after bathing",
+    "Massage gently until absorbed",
+    "Apply on damp skin",
+  ],
+  'Facewash': [
+    "Wash face twice daily",
+    "Use morning and evening",
+    "Massage gently for 30 seconds",
+    "Rinse thoroughly with water",
+    "Avoid excessive scrubbing",
+  ],
+  'Soaps': [
+    "Use once daily",
+    "Use during bathing",
+    "Leave for 1–2 minutes before rinsing",
+    "Use over affected area only",
+  ],
+  'Shampoos': [
+    "Use twice weekly",
+    "Apply on wet scalp",
+    "Leave for 5 minutes before rinsing",
+    "Use on alternate days",
+    "Massage gently into scalp",
+  ],
+  'Sachets': [
+    "Dissolve in water and drink",
+    "Take once daily",
+    "Take after meals",
+    "Take at bedtime",
+    "Use immediately after mixing",
+  ],
+  'Shots': [
+    "Single session advised",
+    "Repeat every 4 weeks",
+    "Repeat monthly",
+    "Maintenance session every 6 months",
+    "Follow-up session advised",
+    "Avoid touching treated area",
+    "No makeup for 24 hours",
+  ],
+  'Injections': [
+    "Single IM injection",
+    "Single IV injection",
+    "Intralesional injection every 2 weeks",
+    "Administer by healthcare professional only",
+    "Follow-up after injection",
+    "Observe for allergy reaction",
+  ],
+  'Eye / Ear Drops': [
+    'Instill 1 drop twice daily',
+    '2 drops every 6 hours',
+    'Use in affected eye/ear',
+    'Shake well before use',
+  ],
 };
 
-const DEFAULT_FREQUENCIES = [
-  { value: "OD", label: "OD — Once a day" },
-  { value: "BD", label: "BD — Twice a day" },
-  { value: "TDS", label: "TDS — Three times a day" },
-  { value: "QID", label: "QID — Four times a day" },
-  { value: "SOS", label: "SOS — As needed" },
-  { value: "HS", label: "HS — At bedtime" },
-  { value: "Stat", label: "Stat — Immediately" },
-  { value: "Weekly", label: "Weekly" },
-];
+const DEFAULT_FREQUENCY_CATEGORY = 'Tablets';
+
+function inferFrequencyCategory(name: string, itemCategory?: string): string {
+  const haystack = `${itemCategory ?? ''} ${name}`.toLowerCase();
+  if (/\b(eye.?drop|ear.?drop|ophthalmic|otic)\b/.test(haystack)) return 'Eye / Ear Drops';
+  if (/\b(inject|injection|vial|ampule|im\b|iv\b|subcutaneous)\b/.test(haystack)) return 'Injections';
+  if (/\b(shampoo)\b/.test(haystack)) return 'Shampoos';
+  if (/\b(sachet|powder)\b/.test(haystack)) return 'Sachets';
+  if (/\b(facewash|face.?wash)\b/.test(haystack)) return 'Facewash';
+  if (/\b(soap)\b/.test(haystack)) return 'Soaps';
+  if (/\b(lotion|sunblock|sunscreen|spf|spray)\b/.test(haystack)) return 'Lotions';
+  if (/\b(serum)\b/.test(haystack)) return 'Serums';
+  if (/\b(shots?|session)\b/.test(haystack)) return 'Shots';
+  if (/\b(gel)\b/.test(haystack)) return 'Gels';
+  if (/\b(ointment)\b/.test(haystack)) return 'Ointments';
+  if (/\b(cream|paste|cleanser)\b/.test(haystack)) return 'Creams';
+  if (/\b(syrup|suspension|liquid|elixir|syp\b)\b/.test(haystack)) return 'Syrups';
+  if (/\b(capsule|cap\b)\b/.test(haystack)) return 'Capsules';
+  if (/\b(tablet|tab\b|oral)\b/.test(haystack)) return 'Tablets';
+  return DEFAULT_FREQUENCY_CATEGORY;
+}
 
 const defaultMedicine = (): Medicine => ({
   id: uuidv4(),
   name: '',
   dosage: 'tablet',
-  frequency: 'OD',
+  frequencyCategory: DEFAULT_FREQUENCY_CATEGORY,
+  frequency: FREQUENCY_CATEGORIES[DEFAULT_FREQUENCY_CATEGORY][0],
   duration: '7 days',
   instructions: '',
   showOther: false
@@ -310,24 +459,10 @@ export default function EPrescriptionPage() {
     setMedicines(prev => prev.map(m => {
       if (m.id === id) {
         const updated = { ...m, ...updates };
-        
-        // Handle dynamic frequency logic when dosage changes
-        if (updates.dosage !== undefined) {
-          const dosageKey = updates.dosage.toLowerCase();
-          const customOptions = DOSAGE_FREQUENCY_MAP[dosageKey];
-          
-          if (customOptions && customOptions.length > 0) {
-            // If we have custom frequencies for this dosage and current frequency isn't one of them, reset
-            if (!customOptions.includes(updated.frequency)) {
-              updated.frequency = customOptions[0];
-            }
-          } else {
-            // For other dosages (like tablet), ensure frequency is one of the defaults
-            const defaultValues = DEFAULT_FREQUENCIES.map(f => f.value);
-            if (!defaultValues.includes(updated.frequency)) {
-              updated.frequency = 'OD';
-            }
-          }
+        // When category changes, reset frequency to first option in new category
+        if (updates.frequencyCategory !== undefined) {
+          const opts = FREQUENCY_CATEGORIES[updates.frequencyCategory] ?? [];
+          updated.frequency = opts[0] ?? '';
         }
         return updated;
       }
@@ -780,10 +915,12 @@ export default function EPrescriptionPage() {
                                         className="px-3 py-2 hover:bg-muted cursor-pointer flex flex-col border-b last:border-0"
                                         onMouseDown={(e) => {
                                           e.preventDefault();
+                                          const detectedCat = inferFrequencyCategory(p.productName || p.name, p.category);
                                           updateMedicine(med.id, {
                                             name: p.productName || p.name,
                                             pharmacyItemId: p.id,
                                             genericName: p.genericName || '',
+                                            frequencyCategory: detectedCat,
                                             ...(p.unit ? { dosage: `1 ${p.unit}` } : {})
                                           });
                                         }}
@@ -846,14 +983,39 @@ export default function EPrescriptionPage() {
                                   </Badge>
                               </div>
                             )}
+                            {med.pharmacyItemId && med.pharmacyItemId !== 'manual' && (
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <span className="text-[10px] text-muted-foreground">Detected as:</span>
+                                <Badge variant="outline" className="text-[10px] py-0 bg-blue-50 text-blue-700 border-blue-200">
+                                  {med.frequencyCategory}
+                                </Badge>
+                                <span className="text-[10px] text-muted-foreground">— adjust below if incorrect</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs flex items-center gap-1.5">
+                              Frequency Category
+                              {med.pharmacyItemId && med.pharmacyItemId !== 'manual' && (
+                                <span className="text-[9px] bg-blue-50 text-blue-600 border border-blue-200 rounded px-1 font-medium leading-4">auto</span>
+                              )}
+                            </Label>
+                            <Select value={med.frequencyCategory} onValueChange={val => updateMedicine(med.id, { frequencyCategory: val })}>
+                              <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                              <SelectContent>
+                                {Object.keys(FREQUENCY_CATEGORIES).map(cat => (
+                                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Frequency</Label>
                             <Select value={med.frequency} onValueChange={val => updateMedicine(med.id, { frequency: val })}>
-                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectTrigger><SelectValue placeholder="Select frequency" /></SelectTrigger>
                               <SelectContent>
-                                {DEFAULT_FREQUENCIES.map(opt => (
-                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                {(FREQUENCY_CATEGORIES[med.frequencyCategory] ?? []).map(opt => (
+                                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>

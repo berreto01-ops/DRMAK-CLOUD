@@ -520,20 +520,21 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
                     <span style={{ fontSize: '28pt', fontWeight: 900, color: GOLD, fontFamily: 'serif', marginRight: '4mm', lineHeight: 1 }}>℞</span>
                     <span style={{ fontSize: '18pt', fontWeight: 900, color: GOLD, textTransform: 'uppercase', letterSpacing: '2px' }}>Treatment Plan</span>
                   </div>
-                  <div style={{ paddingLeft: '4mm' }}>
+                  <div style={{ paddingLeft: '4mm', overflow: 'hidden' }}>
                     {namedMeds.map((med, i) => (
-                      <div key={med.id} style={{ marginBottom: '5mm', paddingBottom: '3mm' }}>
-                        <div style={{ display: 'flex', gap: '4mm', alignItems: 'baseline', flexWrap: 'wrap' }}>
-                          <div style={{ fontSize: '13pt', fontWeight: 800, color: INK }}>{med.name}</div>
-                          <div style={{ fontSize: '10.5pt', color: GOLD, fontWeight: 700 }}>{med.frequency}</div>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5mm', paddingLeft: '4mm' }}>
-                          <div style={{ fontSize: '9.5pt', color: '#666', fontWeight: 600 }}>Duration: {med.duration}</div>
+                      <div key={med.id} style={{ marginBottom: '5mm', paddingBottom: '3mm', display: 'flex', gap: '2.5mm', alignItems: 'flex-start' }}>
+                        <span style={{ color: GOLD, fontSize: '14pt', lineHeight: 1, marginTop: '1mm', flexShrink: 0 }}>•</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '13pt', fontWeight: 800, color: INK, wordBreak: 'break-word' }}>{med.name}</div>
+                        <div style={{ fontSize: '10.5pt', color: GOLD, fontWeight: 700, marginTop: '0.5mm', wordBreak: 'break-word', overflowWrap: 'break-word' }}>{med.frequency}</div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6mm', marginTop: '1.5mm', paddingLeft: '4mm' }}>
+                          <div style={{ fontSize: '9.5pt', color: '#666', fontWeight: 600, whiteSpace: 'nowrap' }}>Duration: {med.duration}</div>
                           {med.instructions && (
                             <div style={{ fontSize: '9.5pt', color: INK, fontStyle: 'italic', fontWeight: 500 }}>
                               <span style={{ color: GOLD, fontWeight: 800, fontStyle: 'normal' }}>Note: </span>{med.instructions}
                             </div>
                           )}
+                        </div>
                         </div>
                       </div>
                     ))}
