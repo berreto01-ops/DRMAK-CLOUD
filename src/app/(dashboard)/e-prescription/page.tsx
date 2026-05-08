@@ -67,6 +67,16 @@ const INVESTIGATION_OPTIONS = [
   "Other"
 ];
 
+// Fallback procedures shown when Firestore collection is empty or still loading
+const FALLBACK_PROCEDURES = [
+  "Standard Consultation",
+  "Follow-up Consultation",
+  "Laser Hair Removal (Face)",
+  "HydraFacial",
+  "Acne Treatment",
+  "Botox (Per Unit)",
+];
+
 const DOSAGE_OPTIONS = [
   "tablet",
   "serum",
@@ -149,9 +159,16 @@ export default function EPrescriptionPage() {
   const proceduresRef = useMemoFirebase(() => firestore ? collection(firestore, 'procedures') : null, [firestore]);
   const { data: proceduresData } = useCollection<any>(proceduresRef);
   const procedureOptions = React.useMemo(() => {
-    if (!proceduresData) return ["Other"];
-    const names = proceduresData.map((p: any) => p.name).sort();
-    return [...names, "Other"];
+    // Merge Firestore dynamic procedures with fallback list, deduplicated
+    const firestoreNames: string[] = proceduresData
+      ? proceduresData.map((p: any) => p.name).filter(Boolean)
+      : [];
+    const allNames = Array.from(
+      new Map(
+        [...FALLBACK_PROCEDURES, ...firestoreNames].map(n => [n.toLowerCase().trim(), n])
+      ).values()
+    ).sort((a, b) => a.localeCompare(b));
+    return [...allNames, "Other"];
   }, [proceduresData]);
 
   const [selectedPatient, setSelectedPatient] = React.useState<Patient | null>(null);
