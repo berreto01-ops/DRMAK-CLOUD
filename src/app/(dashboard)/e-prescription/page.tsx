@@ -831,52 +831,13 @@ export default function EPrescriptionPage() {
                             )}
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Dosage</Label>
-                            <div className="space-y-2">
-                              <Select 
-                                value={med.showOther ? "others" : (DOSAGE_OPTIONS.includes(med.dosage) ? med.dosage : "")} 
-                                onValueChange={val => {
-                                  if (val === "others") {
-                                    updateMedicine(med.id, { showOther: true, dosage: '' });
-                                  } else {
-                                    updateMedicine(med.id, { showOther: false, dosage: val });
-                                  }
-                                }}
-                              >
-                                <SelectTrigger className="h-9">
-                                  <SelectValue placeholder="Select type..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {DOSAGE_OPTIONS.map(opt => (
-                                    <SelectItem key={opt} value={opt} className="capitalize">{opt}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              
-                              {med.showOther && (
-                                <Input 
-                                  placeholder="Specify dosage..." 
-                                  value={med.dosage} 
-                                  onChange={e => updateMedicine(med.id, { dosage: e.target.value })} 
-                                  className="h-8 text-xs animate-in fade-in slide-in-from-top-1 duration-200"
-                                />
-                              )}
-                            </div>
-                          </div>
-                          <div className="space-y-1">
                             <Label className="text-xs">Frequency</Label>
                             <Select value={med.frequency} onValueChange={val => updateMedicine(med.id, { frequency: val })}>
                               <SelectTrigger><SelectValue /></SelectTrigger>
                               <SelectContent>
-                                {DOSAGE_FREQUENCY_MAP[med.dosage] ? (
-                                  DOSAGE_FREQUENCY_MAP[med.dosage].map(opt => (
-                                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                                  ))
-                                ) : (
-                                  DEFAULT_FREQUENCIES.map(opt => (
-                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                                  ))
-                                )}
+                                {DEFAULT_FREQUENCIES.map(opt => (
+                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           </div>

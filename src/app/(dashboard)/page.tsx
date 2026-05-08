@@ -43,7 +43,8 @@ import {
     MoreVertical,
     Settings2,
     Coins,
-    Printer
+    Printer,
+    CheckCircle2
 } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
