@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Printer, CheckCircle2, Clock, MessageCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PrescriptionPreview } from '@/components/PrescriptionPreview';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Eye, History, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUser } from '@/firebase';
@@ -63,9 +63,6 @@ export default function PrintPrescriptionPage() {
   const pendingJobs = React.useMemo(() => sortJobs(rawPendingJobs), [rawPendingJobs]);
   const historyJobs = React.useMemo(() => sortJobs(rawHistoryJobs), [rawHistoryJobs]);
 
-  const loading = view === 'pending' ? pendingLoading : historyLoading;
-  const currentJobs = view === 'pending' ? pendingJobs : historyJobs;
-
   const [printingJob, setPrintingJob] = React.useState<any | null>(null);
   const [viewingJob, setViewingJob] = React.useState<any | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
@@ -100,8 +97,16 @@ export default function PrintPrescriptionPage() {
           canvas.toBlob(b => resolve(b!), 'image/jpeg', 0.92)
         );
         const fileName = `Prescription-${whatsappJob.patientName || 'Patient'}.jpg`;
-        const file = new File([blob], fileName, { type: 'image/jpeg' });
 
+        // Step 1: auto-download the prescription image
+        const objectUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = objectUrl;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(objectUrl);
+
+        // Step 2: open WhatsApp directly to that patient's number
         const phone = formatWhatsAppPhone(whatsappJob.patientMobile);
         const greeting = [
           `Dear ${whatsappJob.patientName || 'Patient'},`,
@@ -110,23 +115,8 @@ export default function PrintPrescriptionPage() {
           ``,
           `— SkinSmith Clinic`,
         ].join('\n');
-
-        // On mobile: Web Share API sends the image directly into WhatsApp
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], text: greeting });
-          toast({ title: 'Shared', description: 'Prescription image shared successfully.' });
-        } else {
-          // Desktop fallback: download the image, then open WhatsApp with phone pre-filled
-          const objectUrl = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = objectUrl;
-          a.download = fileName;
-          a.click();
-          URL.revokeObjectURL(objectUrl);
-
-          window.open(`https://wa.me/${phone}?text=${encodeURIComponent(greeting)}`, '_blank');
-          toast({ title: 'Image Downloaded', description: 'Prescription saved to Downloads. Attach it in the WhatsApp conversation that just opened.' });
-        }
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(greeting)}`, '_blank');
+        toast({ title: 'Ready to Send', description: 'Prescription image downloaded — attach it in the WhatsApp chat that just opened.' });
       } catch (err) {
         console.error('WhatsApp prescription error:', err);
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to prepare the prescription for WhatsApp.' });

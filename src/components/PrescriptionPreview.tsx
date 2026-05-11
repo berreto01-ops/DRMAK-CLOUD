@@ -446,34 +446,33 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
           backgroundRepeat: 'no-repeat'
         }} />
 
-        <div style={{ 
-          position: 'relative', 
-          zIndex: 1, 
-          paddingTop: '43mm', 
+        <div style={{
+          position: 'relative',
+          zIndex: 1,
+          paddingTop: '41mm',
           paddingBottom: '35mm',
           paddingLeft: '16mm',
           paddingRight: '16mm',
           display: 'flex',
           flexDirection: 'column',
-          minHeight: '245mm', 
+          minHeight: '245mm',
           background: 'transparent',
           color: INK
         }}>
-          {/* Patient Info Row */}
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center',
+          {/* Patient Info Row — values sit on the underlines in the template */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'flex-end',
             height: '10mm',
             fontSize: '11pt',
             fontWeight: 800,
             marginBottom: '4mm',
-            transform: 'translateY(-2mm)',
             color: INK
           }}>
-            <div style={{ width: '58mm', paddingLeft: '14mm', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.patient?.name}</div>
-            <div style={{ width: '38mm', paddingLeft: '12mm' }}>{p.prescriptionAge ? `${p.prescriptionAge} Y` : (p.patient?.age ? `${p.patient.age} Y` : '')}</div>
-            <div style={{ width: '38mm', paddingLeft: '11mm' }}>{p.prescriptionGender || p.patient?.gender}</div>
-            <div style={{ flex: 1, paddingLeft: '18mm' }}>{p.today}</div>
+            <div style={{ width: '58mm', paddingLeft: '14mm', paddingBottom: '0.8mm', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.patient?.name}</div>
+            <div style={{ width: '38mm', paddingLeft: '12mm', paddingBottom: '0.8mm' }}>{p.prescriptionAge ? `${p.prescriptionAge} Y` : (p.patient?.age ? `${p.patient.age} Y` : '')}</div>
+            <div style={{ width: '38mm', paddingLeft: '11mm', paddingBottom: '0.8mm' }}>{p.prescriptionGender || p.patient?.gender}</div>
+            <div style={{ flex: 1, paddingLeft: '18mm', paddingBottom: '0.8mm' }}>{p.today}</div>
           </div>
 
           <div style={{ 
