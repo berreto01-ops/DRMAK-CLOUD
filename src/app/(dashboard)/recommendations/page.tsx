@@ -140,19 +140,10 @@ export default function RecommendationsPage() {
       return;
     }
 
-    if (!trainings || trainings.length === 0) {
-      toast({
-        variant: 'destructive',
-        title: 'No training data',
-        description: 'Wait for training materials to load.',
-      });
-      return;
-    }
-
     setLoading(true);
     setResult(null);
 
-    const formattedTrainings = trainings.map(t => ({
+    const formattedTrainings = (trainings ?? []).map(t => ({
       title: t.title,
       content: t.content,
     }));
@@ -370,14 +361,12 @@ export default function RecommendationsPage() {
       }
     }
 
-    if (!trainings || trainings.length === 0) return;
-
-    setMarkers(prev => prev.map(m => 
+    setMarkers(prev => prev.map(m =>
       m.id === marker.id ? { ...m, loading: true } : m
     ));
 
     try {
-      const formattedTrainings = trainings.map(t => ({
+      const formattedTrainings = (trainings ?? []).map(t => ({
         title: t.title,
         content: t.content,
       }));
@@ -848,7 +837,7 @@ export default function RecommendationsPage() {
           <div className="flex gap-4">
             <Button
               onClick={handleAnalyze}
-              disabled={loading || (!imageBase64 && mode !== 'camera') || trainingsLoading}
+              disabled={loading || (!imageBase64 && mode !== 'camera')}
               size="lg"
               className={cn(
                 "flex-1 py-8 text-xl font-bold rounded-2xl shadow-lg transition-all",
