@@ -10,7 +10,7 @@ import { initializeFirebase } from './index';
 export async function uploadFile(file: File, path: string): Promise<string> {
     // Create a timeout promise
     const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Upload timed out (5s). This is likely a CORS or connection issue.')), 5000);
+        setTimeout(() => reject(new Error('Upload timed out (30s). This is likely a CORS or connection issue.')), 30000);
     });
 
     try {
@@ -18,7 +18,7 @@ export async function uploadFile(file: File, path: string): Promise<string> {
         const { storage } = initializeFirebase();
         const storageRef = ref(storage, path);
 
-        console.log('storage.ts: Starting upload with 5s timeout protection...');
+        console.log('storage.ts: Starting upload with 30s timeout protection...');
         
         // Race the upload against the timeout
         const uploadPromise = (async () => {

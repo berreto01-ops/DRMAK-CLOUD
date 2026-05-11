@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Eye, History, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUser } from '@/firebase';
+import { uploadFile } from '@/firebase/storage';
 
 function formatWhatsAppPhone(raw: string): string {
   if (!raw) return '';
@@ -24,21 +25,6 @@ function formatWhatsAppPhone(raw: string): string {
   return `+${digits}`;
 }
 
-function buildWhatsAppMessage(job: any): string {
-  const date = job.createdAt ? new Date(job.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : '';
-  const medLines = (job.medicines || [])
-    .filter((m: any) => m.name)
-    .map((m: any) => `• ${m.name}${m.frequency ? ` — ${m.frequency}` : ''}${m.duration ? ` (${m.duration})` : ''}`)
-    .join('\n');
-  return [
-    `Dear ${job.patientName || 'Patient'},`,
-    ``,
-    `Your prescription from *${job.doctorName || 'your doctor'}* dated ${date} has been prepared.`,
-    medLines ? `\n*Treatment Plan:*\n${medLines}` : '',
-    job.advice ? `\n*Advice:* ${job.advice}` : '',
-    `\nFor any queries, please contact SkinSmith Clinic.`,
-  ].filter(Boolean).join('\n');
-}
 
 export default function PrintPrescriptionPage() {
   const firestore = useFirestore();
@@ -84,6 +70,76 @@ export default function PrintPrescriptionPage() {
   const [printingJob, setPrintingJob] = React.useState<any | null>(null);
   const [viewingJob, setViewingJob] = React.useState<any | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
+
+  // WhatsApp prescription sharing
+  const [whatsappJob, setWhatsappJob] = React.useState<any | null>(null);
+  const [whatsappLoadingId, setWhatsappLoadingId] = React.useState<string | null>(null);
+  const whatsappPreviewRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!whatsappJob || !whatsappPreviewRef.current) return;
+
+    const captureAndSend = async () => {
+      try {
+        // Wait for fonts/images to render inside the preview
+        await new Promise(r => setTimeout(r, 800));
+
+        const html2canvas = (await import('html2canvas')).default;
+        const el = whatsappPreviewRef.current!;
+        const canvas = await html2canvas(el, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          width: el.scrollWidth,
+          height: el.scrollHeight,
+          windowWidth: el.scrollWidth,
+          windowHeight: el.scrollHeight,
+        });
+
+        const blob = await new Promise<Blob>(resolve =>
+          canvas.toBlob(b => resolve(b!), 'image/jpeg', 0.92)
+        );
+        const file = new File([blob], `rx-${whatsappJob.id || Date.now()}.jpg`, { type: 'image/jpeg' });
+
+        const url = await uploadFile(file, `prescriptions/whatsapp/${whatsappJob.id || Date.now()}.jpg`);
+
+        if (!url) {
+          toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not prepare the prescription image. Check Firebase Storage rules.' });
+          return;
+        }
+
+        const phone = formatWhatsAppPhone(whatsappJob.patientMobile);
+        const message = [
+          `Dear ${whatsappJob.patientName || 'Patient'},`,
+          ``,
+          `Your prescription from *${whatsappJob.doctorName || 'your doctor'}* is ready.`,
+          ``,
+          `📋 *View Prescription:*`,
+          url,
+          ``,
+          `— SkinSmith Clinic`,
+        ].join('\n');
+
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+        toast({ title: 'WhatsApp Opened', description: 'Prescription image link ready to send.' });
+      } catch (err) {
+        console.error('WhatsApp prescription error:', err);
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to prepare the prescription for WhatsApp.' });
+      } finally {
+        setWhatsappJob(null);
+        setWhatsappLoadingId(null);
+      }
+    };
+
+    captureAndSend();
+  }, [whatsappJob]);
+
+  const handleWhatsApp = (job: any) => {
+    if (whatsappLoadingId) return;
+    setWhatsappLoadingId(job.id);
+    setWhatsappJob(job);
+  };
 
   const handlePrint = async (job: any) => {
     // 1. Close any open preview dialogs first to prevent duplicate rendering in DOM
@@ -221,15 +277,13 @@ export default function PrintPrescriptionPage() {
                               {isOpsManager && job.patientMobile && (
                                 <Button
                                   size="sm"
-                                  className="h-10 bg-[#25D366] hover:bg-[#1ebe5d] font-black text-[10px] uppercase tracking-widest rounded-xl px-4 text-white shadow-lg shadow-green-200 transition-all active:scale-95"
-                                  onClick={() => {
-                                    const phone = formatWhatsAppPhone(job.patientMobile);
-                                    const msg = encodeURIComponent(buildWhatsAppMessage(job));
-                                    window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
-                                  }}
+                                  disabled={whatsappLoadingId === job.id}
+                                  className="h-10 bg-[#25D366] hover:bg-[#1ebe5d] font-black text-[10px] uppercase tracking-widest rounded-xl px-4 text-white shadow-lg shadow-green-200 transition-all active:scale-95 disabled:opacity-70"
+                                  onClick={() => handleWhatsApp(job)}
                                 >
-                                  <MessageCircle className="w-4 h-4 mr-2" />
-                                  WhatsApp
+                                  {whatsappLoadingId === job.id
+                                    ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Preparing...</>
+                                    : <><MessageCircle className="w-4 h-4 mr-2" />WhatsApp</>}
                                 </Button>
                               )}
                               <Button
@@ -314,15 +368,13 @@ export default function PrintPrescriptionPage() {
                             {isOpsManager && job.patientMobile && (
                               <Button
                                 size="sm"
-                                className="h-9 bg-[#25D366] hover:bg-[#1ebe5d] font-black text-[10px] uppercase tracking-widest rounded-xl px-4 text-white shadow-md shadow-green-200 transition-all active:scale-95"
-                                onClick={() => {
-                                  const phone = formatWhatsAppPhone(job.patientMobile);
-                                  const msg = encodeURIComponent(buildWhatsAppMessage(job));
-                                  window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
-                                }}
+                                disabled={whatsappLoadingId === job.id}
+                                className="h-9 bg-[#25D366] hover:bg-[#1ebe5d] font-black text-[10px] uppercase tracking-widest rounded-xl px-4 text-white shadow-md shadow-green-200 transition-all active:scale-95 disabled:opacity-70"
+                                onClick={() => handleWhatsApp(job)}
                               >
-                                <MessageCircle className="w-4 h-4 mr-2" />
-                                WhatsApp
+                                {whatsappLoadingId === job.id
+                                  ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Preparing...</>
+                                  : <><MessageCircle className="w-4 h-4 mr-2" />WhatsApp</>}
                               </Button>
                             )}
                             <Button
@@ -452,6 +504,51 @@ export default function PrintPrescriptionPage() {
         })(),
         document.body
       )}
+
+      {/* OFF-SCREEN WHATSAPP CAPTURE LAYER */}
+      {whatsappJob && (() => {
+        const docProfile = doctors?.find((d: any) =>
+          d.id === whatsappJob.doctorId ||
+          d.name?.toLowerCase().includes(whatsappJob.doctorName?.toLowerCase())
+        );
+        const templateUrl = whatsappJob.prescriptionTemplateUrl || (docProfile?.useCustomPrescription ? docProfile.prescriptionTemplateUrl : undefined);
+        const shouldHideBranding = whatsappJob.hideBranding !== undefined ? whatsappJob.hideBranding : false;
+        return (
+          <div
+            ref={whatsappPreviewRef}
+            style={{
+              position: 'fixed',
+              left: '-9999px',
+              top: 0,
+              width: '794px',
+              backgroundColor: '#fff',
+              zIndex: -1,
+            }}
+          >
+            <PrescriptionPreview
+              doctorName={whatsappJob.doctorName || ''}
+              doctorQualification={whatsappJob.doctorQualification || ''}
+              doctorSpecialization={whatsappJob.doctorSpecialization || ''}
+              patient={whatsappJob.patient || { name: whatsappJob.patientName, mobileNumber: whatsappJob.patientMobile, age: '', gender: '' }}
+              chiefComplaint={whatsappJob.chiefComplaint || ''}
+              examination={whatsappJob.examination || ''}
+              diagnosis={whatsappJob.diagnosis || ''}
+              medicines={whatsappJob.medicines || []}
+              procedure={whatsappJob.procedure || ''}
+              advice={whatsappJob.advice || ''}
+              followUpDates={whatsappJob.followUp || []}
+              allergies={whatsappJob.allergies || ''}
+              coMorbids={whatsappJob.coMorbids || ''}
+              today={safeFormat(whatsappJob.createdAt, 'dd MMMM yyyy', format(new Date(), 'dd MMMM yyyy'))}
+              prescriptionTemplateUrl={templateUrl}
+              hideBranding={shouldHideBranding}
+              prescriptionAge={whatsappJob.prescriptionAge}
+              prescriptionGender={whatsappJob.prescriptionGender}
+              investigations={whatsappJob.investigations || ''}
+            />
+          </div>
+        );
+      })()}
     </div>
   );
 }
