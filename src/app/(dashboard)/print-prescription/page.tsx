@@ -8,15 +8,42 @@ import { safeFormat } from '@/lib/safe-date';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Printer, CheckCircle2, Clock } from 'lucide-react';
+import { Printer, CheckCircle2, Clock, MessageCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PrescriptionPreview } from '@/components/PrescriptionPreview';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Eye, History, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useUser } from '@/firebase';
+
+function formatWhatsAppPhone(raw: string): string {
+  if (!raw) return '';
+  const digits = raw.replace(/\D/g, '');
+  if (digits.startsWith('92')) return `+${digits}`;
+  if (digits.startsWith('0')) return `+92${digits.slice(1)}`;
+  return `+${digits}`;
+}
+
+function buildWhatsAppMessage(job: any): string {
+  const date = job.createdAt ? new Date(job.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : '';
+  const medLines = (job.medicines || [])
+    .filter((m: any) => m.name)
+    .map((m: any) => `• ${m.name}${m.frequency ? ` — ${m.frequency}` : ''}${m.duration ? ` (${m.duration})` : ''}`)
+    .join('\n');
+  return [
+    `Dear ${job.patientName || 'Patient'},`,
+    ``,
+    `Your prescription from *${job.doctorName || 'your doctor'}* dated ${date} has been prepared.`,
+    medLines ? `\n*Treatment Plan:*\n${medLines}` : '',
+    job.advice ? `\n*Advice:* ${job.advice}` : '',
+    `\nFor any queries, please contact SkinSmith Clinic.`,
+  ].filter(Boolean).join('\n');
+}
 
 export default function PrintPrescriptionPage() {
   const firestore = useFirestore();
+  const { user } = useUser();
+  const isOpsManager = user?.role === 'Operations Manager' || user?.role === 'Admin';
 
   const [view, setView] = React.useState<'pending' | 'history'>('pending');
 
@@ -179,9 +206,9 @@ export default function PrintPrescriptionPage() {
                           </TableCell>
                           <TableCell className="text-right px-8">
                             <div className="flex justify-end gap-3">
-                              <Button 
+                              <Button
                                 variant="outline"
-                                size="sm" 
+                                size="sm"
                                 className="h-10 border-indigo-100 hover:bg-indigo-50 text-indigo-700 font-black text-[10px] uppercase tracking-widest rounded-xl px-4 transition-all"
                                 onClick={() => {
                                   setViewingJob(job);
@@ -191,9 +218,23 @@ export default function PrintPrescriptionPage() {
                                 <Eye className="w-4 h-4 mr-2" />
                                 Show Prescription
                               </Button>
-                              <Button 
-                                onClick={() => handlePrint(job)} 
-                                size="sm" 
+                              {isOpsManager && job.patientMobile && (
+                                <Button
+                                  size="sm"
+                                  className="h-10 bg-[#25D366] hover:bg-[#1ebe5d] font-black text-[10px] uppercase tracking-widest rounded-xl px-4 text-white shadow-lg shadow-green-200 transition-all active:scale-95"
+                                  onClick={() => {
+                                    const phone = formatWhatsAppPhone(job.patientMobile);
+                                    const msg = encodeURIComponent(buildWhatsAppMessage(job));
+                                    window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+                                  }}
+                                >
+                                  <MessageCircle className="w-4 h-4 mr-2" />
+                                  WhatsApp
+                                </Button>
+                              )}
+                              <Button
+                                onClick={() => handlePrint(job)}
+                                size="sm"
                                 className="h-10 bg-indigo-600 hover:bg-indigo-700 font-black text-[10px] uppercase tracking-widest rounded-xl px-6 shadow-lg shadow-indigo-200 transition-all active:scale-95"
                               >
                                 <Printer className="w-4 h-4 mr-2" />
@@ -269,9 +310,24 @@ export default function PrintPrescriptionPage() {
                             </span>
                           </TableCell>
                           <TableCell className="text-right px-8">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
+                            <div className="flex justify-end gap-3">
+                            {isOpsManager && job.patientMobile && (
+                              <Button
+                                size="sm"
+                                className="h-9 bg-[#25D366] hover:bg-[#1ebe5d] font-black text-[10px] uppercase tracking-widest rounded-xl px-4 text-white shadow-md shadow-green-200 transition-all active:scale-95"
+                                onClick={() => {
+                                  const phone = formatWhatsAppPhone(job.patientMobile);
+                                  const msg = encodeURIComponent(buildWhatsAppMessage(job));
+                                  window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+                                }}
+                              >
+                                <MessageCircle className="w-4 h-4 mr-2" />
+                                WhatsApp
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               className="font-black text-[10px] uppercase tracking-widest text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-xl"
                               onClick={() => {
                                 setViewingJob(job);
@@ -281,6 +337,7 @@ export default function PrintPrescriptionPage() {
                               <Eye className="w-4 h-4 mr-2" />
                               View Copy
                             </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
