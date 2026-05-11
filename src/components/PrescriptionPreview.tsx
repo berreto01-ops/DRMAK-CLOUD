@@ -449,7 +449,7 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
         <div style={{
           position: 'relative',
           zIndex: 1,
-          paddingTop: '41mm',
+          paddingTop: '39.5mm',
           paddingBottom: '35mm',
           paddingLeft: '16mm',
           paddingRight: '16mm',
