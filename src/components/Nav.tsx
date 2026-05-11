@@ -387,13 +387,19 @@ const NavContent = () => {
             </div>
         )
     }
+    // Role-specific roles always use their own dedicated nav layout, even if they
+    // also hold management feature flags that would otherwise make isMainAdmin true.
+    const ROLE_SPECIFIC_ROLES = ['Sales', 'Social Media Manager', 'Designer', 'Doctor', 'Receptionist'];
+    const hasRoleSpecificNav = ROLE_SPECIFIC_ROLES.includes(userProfile?.role || '');
+    const showAdminGroupedNav = isMainAdmin && !hasRoleSpecificNav;
+
     // Hide sidebar completely for Main Admin if no viewMode is selected
-    if (isMainAdmin && viewMode === 'none') {
+    if (showAdminGroupedNav && viewMode === 'none') {
         return null;
     }
 
     // Main Admin View Logic
-    if (isMainAdmin) {
+    if (showAdminGroupedNav) {
         const activeGroups = viewMode === 'clinic' ? clinicGroups : (viewMode === 'reports' ? reportsGroups : organizationGroups);
 
         return (
