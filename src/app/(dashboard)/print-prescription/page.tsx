@@ -93,30 +93,45 @@ export default function PrintPrescriptionPage() {
           windowHeight: el.scrollHeight,
         });
 
-        const blob = await new Promise<Blob>(resolve =>
-          canvas.toBlob(b => resolve(b!), 'image/jpeg', 0.92)
+        // Capture as PNG (required for clipboard API)
+        const pngBlob = await new Promise<Blob>(resolve =>
+          canvas.toBlob(b => resolve(b!), 'image/png')
         );
-        const fileName = `Prescription-${whatsappJob.patientName || 'Patient'}.jpg`;
 
-        // Step 1: auto-download the prescription image
-        const objectUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = objectUrl;
-        a.download = fileName;
-        a.click();
-        URL.revokeObjectURL(objectUrl);
-
-        // Step 2: open WhatsApp directly to that patient's number
         const phone = formatWhatsAppPhone(whatsappJob.patientMobile);
-        const greeting = [
-          `Dear ${whatsappJob.patientName || 'Patient'},`,
-          ``,
-          `Your prescription from *${whatsappJob.doctorName || 'your doctor'}* is ready.`,
-          ``,
-          `— SkinSmith Clinic`,
-        ].join('\n');
-        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(greeting)}`, '_blank');
-        toast({ title: 'Ready to Send', description: 'Prescription image downloaded — attach it in the WhatsApp chat that just opened.' });
+
+        // Try to copy the prescription image to clipboard so staff can Ctrl+V in WhatsApp
+        let clipboardOk = false;
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': pngBlob })
+          ]);
+          clipboardOk = true;
+        } catch {
+          // Clipboard API unavailable or denied — fall back to download
+        }
+
+        if (clipboardOk) {
+          window.open(`https://wa.me/${phone}`, '_blank');
+          toast({
+            title: 'Prescription Copied!',
+            description: 'WhatsApp is opening — press Ctrl+V in the chat to paste and send the prescription image.',
+          });
+        } else {
+          // Fallback: download + open WhatsApp with phone pre-filled
+          const fileName = `Prescription-${whatsappJob.patientName || 'Patient'}.png`;
+          const objectUrl = URL.createObjectURL(pngBlob);
+          const a = document.createElement('a');
+          a.href = objectUrl;
+          a.download = fileName;
+          a.click();
+          URL.revokeObjectURL(objectUrl);
+          window.open(`https://wa.me/${phone}`, '_blank');
+          toast({
+            title: 'Image Downloaded',
+            description: 'Prescription saved to Downloads — attach it in the WhatsApp chat that just opened.',
+          });
+        }
       } catch (err) {
         console.error('WhatsApp prescription error:', err);
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to prepare the prescription for WhatsApp.' });
