@@ -15,7 +15,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Eye, History, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUser } from '@/firebase';
-import { uploadFile } from '@/firebase/storage';
 
 function formatWhatsAppPhone(raw: string): string {
   if (!raw) return '';
@@ -100,29 +99,34 @@ export default function PrintPrescriptionPage() {
         const blob = await new Promise<Blob>(resolve =>
           canvas.toBlob(b => resolve(b!), 'image/jpeg', 0.92)
         );
-        const file = new File([blob], `rx-${whatsappJob.id || Date.now()}.jpg`, { type: 'image/jpeg' });
-
-        const url = await uploadFile(file, `prescriptions/whatsapp/${whatsappJob.id || Date.now()}.jpg`);
-
-        if (!url) {
-          toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not prepare the prescription image. Check Firebase Storage rules.' });
-          return;
-        }
+        const fileName = `Prescription-${whatsappJob.patientName || 'Patient'}.jpg`;
+        const file = new File([blob], fileName, { type: 'image/jpeg' });
 
         const phone = formatWhatsAppPhone(whatsappJob.patientMobile);
-        const message = [
+        const greeting = [
           `Dear ${whatsappJob.patientName || 'Patient'},`,
           ``,
           `Your prescription from *${whatsappJob.doctorName || 'your doctor'}* is ready.`,
           ``,
-          `📋 *View Prescription:*`,
-          url,
-          ``,
           `— SkinSmith Clinic`,
         ].join('\n');
 
-        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
-        toast({ title: 'WhatsApp Opened', description: 'Prescription image link ready to send.' });
+        // On mobile: Web Share API sends the image directly into WhatsApp
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], text: greeting });
+          toast({ title: 'Shared', description: 'Prescription image shared successfully.' });
+        } else {
+          // Desktop fallback: download the image, then open WhatsApp with phone pre-filled
+          const objectUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = objectUrl;
+          a.download = fileName;
+          a.click();
+          URL.revokeObjectURL(objectUrl);
+
+          window.open(`https://wa.me/${phone}?text=${encodeURIComponent(greeting)}`, '_blank');
+          toast({ title: 'Image Downloaded', description: 'Prescription saved to Downloads. Attach it in the WhatsApp conversation that just opened.' });
+        }
       } catch (err) {
         console.error('WhatsApp prescription error:', err);
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to prepare the prescription for WhatsApp.' });
