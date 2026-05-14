@@ -201,15 +201,45 @@ export default function FinancialReportPage() {
   }, [allExpenses, selectedRange]);
 
   const financialKPIs = React.useMemo(() => {
-    const revenue = filteredBilling.reduce((sum, b) => sum + (b.grandTotal ?? b.totalAmount ?? ((b.consultationCharges || 0) + (b.procedureCharges || 0) + (b.medicineCharges || 0))), 0);
-    const burn = filteredExpenses.reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
+    let physicalCashRevenue = 0;
+    let onlineCashRevenue = 0;
+    filteredBilling.forEach(b => {
+        const amount = (b.grandTotal ?? b.totalAmount ?? ((b.consultationCharges || 0) + (b.procedureCharges || 0) + (b.medicineCharges || 0)));
+        const method = (b.paymentMethod || 'Cash').toLowerCase();
+        if (method === 'cash' || method.includes('nill (cash)')) {
+            physicalCashRevenue += amount;
+        } else {
+            onlineCashRevenue += amount;
+        }
+    });
+
+    let physicalCashExpenses = 0;
+    let onlineCashExpenses = 0;
+    filteredExpenses.forEach((e: any) => {
+        const amount = e.amount || 0;
+        const method = (e.paymentMethod || 'Cash').toLowerCase();
+        if (method === 'cash') {
+            physicalCashExpenses += amount;
+        } else {
+            onlineCashExpenses += amount;
+        }
+    });
+
+    const revenue = physicalCashRevenue + onlineCashRevenue;
+    const burn = physicalCashExpenses + onlineCashExpenses;
     const debt = allSuppliers?.reduce((sum, s) => sum + ((s.currentBalance ?? (s as any).balance ?? (s as any).totalBalance) || 0), 0) || 0;
     
     return {
         grossRevenue: revenue,
         operationalBurn: burn,
         pendingVendorDebt: debt,
-        netPosition: revenue - burn
+        netPosition: revenue - burn,
+        physicalCashRevenue,
+        onlineCashRevenue,
+        physicalCashExpenses,
+        onlineCashExpenses,
+        netPhysicalCash: physicalCashRevenue - physicalCashExpenses,
+        netOnlineCash: onlineCashRevenue - onlineCashExpenses
     };
   }, [filteredBilling, filteredExpenses, allSuppliers]);
 
@@ -624,7 +654,13 @@ export default function FinancialReportPage() {
                         </div>
                         <div className="space-y-1">
                             <p className="text-4xl font-black text-emerald-900 tracking-tighter">Rs {financialKPIs.grossRevenue.toLocaleString()}</p>
-                            <p className="text-xs font-bold text-emerald-600/80">Total Inflow • {filteredBilling.length} Invoices</p>
+                            <div className="flex items-center gap-2">
+                                <p className="text-[10px] font-bold text-emerald-600/80 uppercase tracking-tighter">Total Inflow</p>
+                                <div className="h-2 w-[1px] bg-emerald-200"></div>
+                                <p className="text-[10px] font-medium text-slate-400">
+                                    Cash: {financialKPIs.physicalCashRevenue.toLocaleString()} | Digital: {financialKPIs.onlineCashRevenue.toLocaleString()}
+                                </p>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

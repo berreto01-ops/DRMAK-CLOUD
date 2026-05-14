@@ -40,7 +40,9 @@ import {
     Loader2,
     Receipt,
     ShieldAlert,
-    CheckCircle2
+    CheckCircle2,
+    Smartphone,
+    HandCoins
 } from 'lucide-react';
 import { format, isToday, startOfDay, endOfDay, isSameDay, isSameMonth, isSameYear, isWithinInterval } from 'date-fns';
 import { DateRange } from 'react-day-picker';
@@ -222,8 +224,8 @@ export default function TodaySummaryPage() {
         const paymentsMap: { [key: string]: { count: number, amount: number } } = {};
         const expenseCategoriesMap: { [key: string]: number } = {};
 
-        let expectedCash = 0;
-        let onlineTransferRevenue = 0;
+        let physicalCashRevenue = 0;
+        let onlineCashRevenue = 0;
         let physicalCashExpenses = 0;
         let digitalExpenses = 0;
         
@@ -241,11 +243,14 @@ export default function TodaySummaryPage() {
 
             // Count payments
             const method = (record.paymentMethod || 'Unknown').toLowerCase();
+            const amount = record.grandTotal || 0;
+            
+            // Binary classification: Physical (Cash) vs Digital (Everything else)
             if (method === 'cash' || method.includes('nill (cash)')) {
-                expectedCash += record.grandTotal || 0;
-            }
-            if (method === 'online' || method.includes('nill (online)')) {
-                onlineTransferRevenue += record.grandTotal || 0;
+                physicalCashRevenue += amount;
+            } else {
+                // Includes Online, Card, Nill (Online), etc.
+                onlineCashRevenue += amount;
             }
             
             const originalMethod = record.paymentMethod || 'Unknown';
@@ -253,7 +258,7 @@ export default function TodaySummaryPage() {
                 paymentsMap[originalMethod] = { count: 0, amount: 0 };
             }
             paymentsMap[originalMethod].count += 1;
-            paymentsMap[originalMethod].amount += record.grandTotal || 0;
+            paymentsMap[originalMethod].amount += amount;
         });
 
         filteredExpenses.forEach(e => {
@@ -267,10 +272,11 @@ export default function TodaySummaryPage() {
             }
         });
 
-        // Net Cash Handover = Cash collected - Physical Cash Expenses
-        const netExpectedCash = expectedCash - physicalCashExpenses;
+        // Final Channel Reconciliation
+        const netPhysicalCash = physicalCashRevenue - physicalCashExpenses;
+        const netOnlineCash = onlineCashRevenue - digitalExpenses;
 
-        const totalPhysicalCash = filteredClosings.reduce((sum, c) => sum + (c.cashHandedOver || 0), 0);
+        const totalPhysicalCashHandover = filteredClosings.reduce((sum, c) => sum + (c.cashHandedOver || 0), 0);
 
         return {
             totalRevenue,
@@ -284,12 +290,17 @@ export default function TodaySummaryPage() {
             })),
             expenseCategories: Object.entries(expenseCategoriesMap).map(([name, amount]) => ({ name, amount })),
             totalTransactions: filteredRecords.length,
-            expectedCash: netExpectedCash,
-            totalPhysicalCash,
-            onlineTransferRevenue,
-            totalTax,
+            // Expected Physical Cash to be handed over
+            expectedCash: netPhysicalCash, 
+            physicalCashRevenue,
             physicalCashExpenses,
-            digitalExpenses
+            // Online/Digital Ledger
+            onlineCashRevenue,
+            digitalExpenses,
+            netOnlineCash,
+            // Handover History
+            totalPhysicalCash: totalPhysicalCashHandover,
+            totalTax,
         };
     }, [filteredRecords, filteredExpenses, filteredClosings]);
 
@@ -397,7 +408,9 @@ export default function TodaySummaryPage() {
                                     <div className="flex flex-col gap-1 w-full md:w-auto">
                                         <div className="flex items-center justify-between px-2 gap-4">
                                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Physical Cash Input</span>
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full">Net Expected (After Exp): Rs {stats.expectedCash.toLocaleString()}</span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full">
+                                                Gross Cash: {stats.physicalCashRevenue.toLocaleString()} | Exp: -{stats.physicalCashExpenses.toLocaleString()} | Net: Rs {stats.expectedCash.toLocaleString()}
+                                            </span>
                                         </div>
                                         <div className="relative flex-1 md:w-64">
                                             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">Rs</div>
@@ -463,15 +476,15 @@ export default function TodaySummaryPage() {
                             </div>
                             <div className="text-right flex items-center gap-8">
                                 <div className="space-y-1">
-                                    <p className="text-xs font-black uppercase text-slate-400 mb-1">System Record</p>
-                                    <p className="text-2xl font-black text-slate-400 tracking-tighter">Rs {stats.expectedCash.toLocaleString()}</p>
+                                    <p className="text-xs font-black uppercase text-slate-400 mb-1">Gross Cash Inflow</p>
+                                    <p className="text-2xl font-black text-slate-400 tracking-tighter">Rs {stats.physicalCashRevenue.toLocaleString()}</p>
                                 </div>
                                 <div className="space-y-1 ml-8">
-                                    <p className="text-xs font-black uppercase text-rose-400 mb-1">Cash Outflow</p>
+                                    <p className="text-xs font-black uppercase text-rose-400 mb-1">Cash Outflow (Exp)</p>
                                     <p className="text-2xl font-black text-rose-400 tracking-tighter">- {stats.physicalCashExpenses.toLocaleString()}</p>
                                 </div>
                                 <div className="space-y-1 ml-8">
-                                    <p className="text-xs font-black uppercase text-indigo-600 mb-1">Physical Handover</p>
+                                    <p className="text-xs font-black uppercase text-indigo-600 mb-1">Net Physical Handover</p>
                                     <p className="text-6xl font-black text-black tracking-tighter">Rs {(periodMode === 'Day' ? parseFloat(cashHandedOver || '0') : stats.totalPhysicalCash).toLocaleString()}</p>
                                 </div>
                             </div>
@@ -511,16 +524,40 @@ export default function TodaySummaryPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="bg-indigo-50/50 border-none shadow-xl shadow-indigo-100/20 rounded-[2rem] overflow-hidden group hover:scale-[1.02] transition-all border-2 border-indigo-100/30">
+                <Card className="bg-indigo-600 border-none shadow-xl shadow-indigo-200 rounded-[2rem] overflow-hidden group hover:scale-[1.02] transition-all">
                     <CardHeader className="pb-2">
-                        <CardDescription className="text-indigo-700 font-bold uppercase tracking-widest text-[9px]">Net Position</CardDescription>
-                        <CardTitle className={`text-4xl font-black tracking-tighter ${stats.netProfit >= 0 ? 'text-indigo-900' : 'text-rose-600'}`}>
+                        <CardDescription className="text-indigo-100 font-bold uppercase tracking-widest text-[9px]">Overall Net Profit</CardDescription>
+                        <CardTitle className="text-4xl font-black text-white tracking-tighter">
                             {stats.netProfit.toLocaleString()} <span className="text-xs font-bold opacity-40">PKR</span>
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="flex items-center gap-1 text-[10px] text-indigo-600 font-black uppercase tracking-tight">
-                            <CreditCard className="h-3 w-3" /> Inflow - Outflow
+                        <div className="flex items-center gap-1 text-[10px] text-indigo-100 font-black uppercase tracking-tight">
+                            <CreditCard className="h-3 w-3" /> Total Inflow - Total Outflow
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-slate-900 border-none shadow-xl shadow-slate-200 rounded-[2rem] overflow-hidden group hover:scale-[1.02] transition-all">
+                    <CardHeader className="pb-2">
+                        <CardDescription className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">Physical Cash (Net)</CardDescription>
+                        <CardTitle className="text-4xl font-black text-white tracking-tighter">{stats.expectedCash.toLocaleString()} <span className="text-xs font-bold opacity-40">PKR</span></CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center gap-1 text-[10px] text-slate-400 font-black uppercase tracking-tight">
+                            <HandCoins className="h-3 w-3" /> Cash Rev - Cash Exp
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-slate-50 border-none shadow-xl shadow-slate-100/50 rounded-[2rem] overflow-hidden group hover:scale-[1.02] transition-all">
+                    <CardHeader className="pb-2">
+                        <CardDescription className="text-slate-500 font-bold uppercase tracking-widest text-[9px]">Digital Ledger (Net)</CardDescription>
+                        <CardTitle className="text-4xl font-black text-slate-900 tracking-tighter">{stats.netOnlineCash.toLocaleString()} <span className="text-xs font-bold opacity-40">PKR</span></CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center gap-1 text-[10px] text-slate-500 font-black uppercase tracking-tight">
+                            <Smartphone className="h-3 w-3" /> Online/Card - Digital Exp
                         </div>
                     </CardContent>
                 </Card>

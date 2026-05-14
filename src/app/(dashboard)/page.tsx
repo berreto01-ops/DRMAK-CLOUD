@@ -646,7 +646,9 @@ const OrganizationDashboard = () => {
             totalAppointments: dailyAppointments.length, 
             completed,
             physicalCash: physicalCashRevenue - physicalCashExpenses,
-            onlineCash: onlineCashRevenue - onlineCashExpenses
+            onlineCash: onlineCashRevenue - onlineCashExpenses,
+            physicalCashRevenue,
+            onlineCashRevenue
         };
     }, [billingRecords, allExpenses, appointments]);
 
@@ -703,7 +705,13 @@ const OrganizationDashboard = () => {
                             <div className="text-4xl font-black tracking-tighter text-slate-900 leading-none">
                                 Rs {stats.revenue.toLocaleString()}
                             </div>
-                            <p className="text-xs font-bold text-emerald-600/80 uppercase tracking-tighter">Gross Collections (Today)</p>
+                            <div className="flex items-center gap-3 mt-1">
+                                <p className="text-[10px] font-bold text-emerald-600/80 uppercase tracking-tighter">Gross Collections</p>
+                                <div className="h-3 w-[1px] bg-emerald-200"></div>
+                                <p className="text-[10px] font-medium text-slate-400">
+                                    Cash: {stats.physicalCashRevenue.toLocaleString()} | Online: {stats.onlineCashRevenue.toLocaleString()}
+                                </p>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
