@@ -214,9 +214,9 @@ export default function TodaySummaryPage() {
     }, [periodMode, selectedDate, selectedMonth, selectedYear, selectedRange]);
 
     const stats = React.useMemo(() => {
-        const totalRevenue = filteredRecords.reduce((sum, r) => sum + (r.grandTotal || 0), 0);
-        const totalTax = filteredRecords.reduce((sum, r) => sum + (r.taxAmount || 0), 0);
-        const totalExpenses = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+        const totalRevenue = filteredRecords.reduce((sum, r) => sum + Number(r.grandTotal || 0), 0);
+        const totalTax = filteredRecords.reduce((sum, r) => sum + Number(r.taxAmount || 0), 0);
+        const totalExpenses = filteredExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
         const uniquePatients = new Set(filteredRecords.map(r => r.patientId)).size;
 
         // Group procedures
@@ -242,11 +242,11 @@ export default function TodaySummaryPage() {
             });
 
             // Count payments
-            const method = (record.paymentMethod || 'Unknown').toLowerCase();
-            const amount = record.grandTotal || 0;
+            const method = (record.paymentMethod || 'Unknown').trim().toLowerCase();
+            const amount = Number(record.grandTotal || 0);
             
             // Binary classification: Physical (Cash) vs Digital (Everything else)
-            if (method === 'cash' || method.includes('nill (cash)')) {
+            if (method.includes('cash')) {
                 physicalCashRevenue += amount;
             } else {
                 // Includes Online, Card, Nill (Online), etc.
@@ -263,17 +263,21 @@ export default function TodaySummaryPage() {
 
         filteredExpenses.forEach(e => {
             const cat = e.category || 'General';
-            expenseCategoriesMap[cat] = (expenseCategoriesMap[cat] || 0) + (e.amount || 0);
+            expenseCategoriesMap[cat] = (expenseCategoriesMap[cat] || 0) + Number(e.amount || 0);
             
-            if ((e.paymentMethod || 'Cash').toLowerCase() === 'cash') {
-                physicalCashExpenses += (e.amount || 0);
+            const method = (e.paymentMethod || 'Cash').trim().toLowerCase();
+            const amt = Number(e.amount || 0);
+            if (method.includes('cash')) {
+                physicalCashExpenses += amt;
             } else {
-                digitalExpenses += (e.amount || 0);
+                digitalExpenses += amt;
             }
         });
 
         // Final Channel Reconciliation
+        // Handover = Physical Cash Revenue minus ONLY physical cash expenses (actual cash in drawer)
         const netPhysicalCash = physicalCashRevenue - physicalCashExpenses;
+        // Digital ledger tracks card/online revenue vs card/digital expenses
         const netOnlineCash = onlineCashRevenue - digitalExpenses;
 
         const totalPhysicalCashHandover = filteredClosings.reduce((sum, c) => sum + (c.cashHandedOver || 0), 0);
@@ -290,7 +294,7 @@ export default function TodaySummaryPage() {
             })),
             expenseCategories: Object.entries(expenseCategoriesMap).map(([name, amount]) => ({ name, amount })),
             totalTransactions: filteredRecords.length,
-            // Expected Physical Cash to be handed over
+            // Actual physical cash in drawer
             expectedCash: netPhysicalCash, 
             physicalCashRevenue,
             physicalCashExpenses,
@@ -480,7 +484,7 @@ export default function TodaySummaryPage() {
                                     <p className="text-2xl font-black text-slate-400 tracking-tighter">Rs {stats.physicalCashRevenue.toLocaleString()}</p>
                                 </div>
                                 <div className="space-y-1 ml-8">
-                                    <p className="text-xs font-black uppercase text-rose-400 mb-1">Cash Outflow (Exp)</p>
+                                    <p className="text-xs font-black uppercase text-rose-400 mb-1">Cash Expenses</p>
                                     <p className="text-2xl font-black text-rose-400 tracking-tighter">- {stats.physicalCashExpenses.toLocaleString()}</p>
                                 </div>
                                 <div className="space-y-1 ml-8">
@@ -491,8 +495,9 @@ export default function TodaySummaryPage() {
                         </div>
                     </div>
 
+
             {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="bg-emerald-50/50 border-none shadow-xl shadow-emerald-100/20 rounded-[2rem] overflow-hidden group hover:scale-[1.02] transition-all">
                     <CardHeader className="pb-2">
                         <CardDescription className="text-emerald-700 font-bold uppercase tracking-widest text-[9px]">Gross Inflow</CardDescription>
@@ -550,17 +555,7 @@ export default function TodaySummaryPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="bg-slate-50 border-none shadow-xl shadow-slate-100/50 rounded-[2rem] overflow-hidden group hover:scale-[1.02] transition-all">
-                    <CardHeader className="pb-2">
-                        <CardDescription className="text-slate-500 font-bold uppercase tracking-widest text-[9px]">Digital Ledger (Net)</CardDescription>
-                        <CardTitle className="text-4xl font-black text-slate-900 tracking-tighter">{stats.netOnlineCash.toLocaleString()} <span className="text-xs font-bold opacity-40">PKR</span></CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex items-center gap-1 text-[10px] text-slate-500 font-black uppercase tracking-tight">
-                            <Smartphone className="h-3 w-3" /> Online/Card - Digital Exp
-                        </div>
-                    </CardContent>
-                </Card>
+
 
                 {/* Cash vs Expected Handover */}
                 {periodMode === 'Day' && Math.abs(parseFloat(cashHandedOver || '0') - stats.expectedCash) > 1 && (
@@ -740,15 +735,9 @@ export default function TodaySummaryPage() {
                                     </div>
                                 ))}
                                 <Separator className="my-4" />
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100">
-                                        <div className="text-[9px] font-black uppercase text-emerald-600 tracking-widest mb-1">Physical Cash Spent</div>
-                                        <div className="text-sm font-black text-emerald-900">Rs {stats.physicalCashExpenses.toLocaleString()}</div>
-                                    </div>
-                                    <div className="p-3 bg-indigo-50 rounded-2xl border border-indigo-100">
-                                        <div className="text-[9px] font-black uppercase text-indigo-600 tracking-widest mb-1">Digital Ledger Spent</div>
-                                        <div className="text-sm font-black text-indigo-900">Rs {stats.digitalExpenses.toLocaleString()}</div>
-                                    </div>
+                                <div className="p-3 bg-rose-50 rounded-2xl border border-rose-100">
+                                    <div className="text-[9px] font-black uppercase text-rose-600 tracking-widest mb-1">Total Operational Burn</div>
+                                    <div className="text-sm font-black text-rose-900">Rs {stats.totalExpenses.toLocaleString()}</div>
                                 </div>
                             </div>
                         )}
@@ -779,7 +768,6 @@ export default function TodaySummaryPage() {
                                     <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest">Time</TableHead>
                                     <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest text-center">Reference</TableHead>
                                     <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest">Patient / Client</TableHead>
-                                    <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest">Payment</TableHead>
                                     <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest text-center">Tax</TableHead>
                                     <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest text-right">Inflow (PKR)</TableHead>
                                 </TableRow>
@@ -797,17 +785,7 @@ export default function TodaySummaryPage() {
                                             <div className="font-black text-slate-900 tracking-tight">{record.patientName}</div>
                                             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{record.patientMobile}</div>
                                         </TableCell>
-                                        <TableCell>
-                                            <Badge className={`font-black text-[10px] uppercase rounded-lg border-none ${
-                                                (record.paymentMethod === 'Cash' || record.paymentMethod === 'Nill (Cash)') ? 'bg-emerald-100 text-emerald-700' :
-                                                (record.paymentMethod === 'Card' || record.paymentMethod === 'Online' || record.paymentMethod === 'Nill (Online)') ? 'bg-indigo-100 text-indigo-700' :
-                                                'bg-slate-100 text-slate-600'
-                                            }`}>
-                                                {(record.paymentMethod === 'Cash' || record.paymentMethod === 'Nill (Cash)') ? 'Physical Cash' : 
-                                                 (record.paymentMethod === 'Online' || record.paymentMethod === 'Nill (Online)') ? 'Online Transfer' : 
-                                                 record.paymentMethod || 'N/A'}
-                                            </Badge>
-                                        </TableCell>
+
                                         <TableCell className="text-center font-bold text-rose-600 bg-rose-50/50 rounded-lg">
                                             {(record.taxAmount || 0).toLocaleString()}
                                         </TableCell>
@@ -849,7 +827,6 @@ export default function TodaySummaryPage() {
                                     <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest">Time</TableHead>
                                     <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest">Category</TableHead>
                                     <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest">Description</TableHead>
-                                    <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest">Channel</TableHead>
                                     <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest text-right">Outflow (PKR)</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -868,11 +845,7 @@ export default function TodaySummaryPage() {
                                             <div className="font-black text-slate-900 tracking-tight capitalize">{expense.description || 'No description'}</div>
                                             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Rec: {expense.recordedBy || 'System'}</div>
                                         </TableCell>
-                                        <TableCell>
-                                            <div className={`flex items-center gap-1.5 font-black text-[10px] ${expense.paymentMethod === 'Cash' ? 'text-emerald-600 bg-emerald-50' : 'text-indigo-600 bg-indigo-50'} px-2 py-0.5 rounded-md w-fit uppercase`}>
-                                                {expense.paymentMethod === 'Cash' ? 'Physical Cash' : expense.paymentMethod || 'Cash'}
-                                            </div>
-                                        </TableCell>
+
                                         <TableCell className="text-right font-black text-rose-600">
                                             {expense.amount?.toLocaleString()}
                                         </TableCell>

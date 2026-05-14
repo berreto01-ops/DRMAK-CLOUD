@@ -449,7 +449,7 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
         <div style={{
           position: 'relative',
           zIndex: 1,
-          paddingTop: '39.5mm',
+          paddingTop: '36.5mm',
           paddingBottom: '35mm',
           paddingLeft: '16mm',
           paddingRight: '16mm',
@@ -561,7 +561,7 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
           width: '30mm',
           display: 'flex', 
           flexDirection: 'column', 
-          gap: '20mm',
+          gap: '8mm',
           textAlign: 'left',
           zIndex: 10,
           overflowWrap: 'break-word',

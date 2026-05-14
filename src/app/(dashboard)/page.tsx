@@ -599,11 +599,11 @@ const OrganizationDashboard = () => {
             const date = new Date(dateStr);
             if (isNaN(date.getTime()) || startOfDay(date).getTime() !== today) return;
             
-            const amount = (r.grandTotal ?? r.totalAmount ?? ((r.consultationCharges || 0) + (r.procedureCharges || 0) + (r.medicineCharges || 0)));
+            const amount = Number(r.grandTotal ?? r.totalAmount ?? ((r.consultationCharges || 0) + (r.procedureCharges || 0) + (r.medicineCharges || 0)));
             revenue += amount;
             
-            const method = (r.paymentMethod || 'Cash').toLowerCase();
-            if (method === 'cash' || method.includes('nill (cash)')) {
+            const method = (r.paymentMethod || 'Cash').trim().toLowerCase();
+            if (method.includes('cash')) {
                 physicalCashRevenue += amount;
             } else {
                 onlineCashRevenue += amount;
@@ -620,11 +620,11 @@ const OrganizationDashboard = () => {
             const date = new Date(dateStr);
             if (isNaN(date.getTime()) || startOfDay(date).getTime() !== today) return;
             
-            const amount = e.amount || 0;
+            const amount = Number(e.amount || 0);
             expenses += amount;
             
-            const method = (e.paymentMethod || 'Cash').toLowerCase();
-            if (method === 'cash') {
+            const method = (e.paymentMethod || 'Cash').trim().toLowerCase();
+            if (method.includes('cash')) {
                 physicalCashExpenses += amount;
             } else {
                 onlineCashExpenses += amount;
@@ -1017,7 +1017,7 @@ const AdminDailyIntelligence = ({
         return billingRecords.filter(r => dateFilter(r.timestamp || r.billingDate)).map(r => ({
             id: r.id,
             patientName: r.patientName || 'Walk-in',
-            total: r.grandTotal ?? r.totalAmount ?? ((r.consultationCharges || 0) + (r.procedureCharges || 0) + (r.medicineCharges || 0)),
+            total: Number(r.grandTotal ?? r.totalAmount ?? ((r.consultationCharges || 0) + (r.procedureCharges || 0) + (r.medicineCharges || 0))),
             consultation: r.consultationCharges || 0,
             procedure: r.procedureCharges || 0,
             medicine: r.medicineCharges || 0,
@@ -1034,12 +1034,12 @@ const AdminDailyIntelligence = ({
             id: e.id,
             description: e.description || e.category || 'Misc Expense',
             category: e.category || 'General',
-            amount: e.amount || 0,
+            amount: Number(e.amount || 0),
             time: (e.timestamp || e.date || e.createdAt) ? format(new Date(e.timestamp || e.date || e.createdAt), 'h:mm a') : '',
         }));
     }, [allExpenses, dateFilter]);
 
-    const totalExpenses = todayExpenses.reduce((acc, e) => acc + e.amount, 0);
+    const totalExpenses = todayExpenses.reduce((acc, e) => acc + Number(e.amount || 0), 0);
 
     // Pending Prescriptions
     const pendingPrescriptions = React.useMemo(() => {
@@ -1053,18 +1053,19 @@ const AdminDailyIntelligence = ({
         let pRevenue = 0;
         let oRevenue = 0;
         billingRecords.filter(r => dateFilter(r.timestamp || r.billingDate)).forEach(r => {
-            const amount = r.grandTotal ?? r.totalAmount ?? ((r.consultationCharges || 0) + (r.procedureCharges || 0) + (r.medicineCharges || 0));
-            const method = (r.paymentMethod || 'Cash').toLowerCase();
-            if (method === 'cash' || method.includes('nill (cash)')) pRevenue += amount;
+            const amount = Number(r.grandTotal ?? r.totalAmount ?? ((r.consultationCharges || 0) + (r.procedureCharges || 0) + (r.medicineCharges || 0)));
+            const method = (r.paymentMethod || 'Cash').trim().toLowerCase();
+            if (method.includes('cash')) pRevenue += amount;
             else oRevenue += amount;
         });
 
         let pExpenses = 0;
         let oExpenses = 0;
         allExpenses.filter((e: any) => dateFilter(e.timestamp || e.date || e.createdAt)).forEach((e: any) => {
-            const method = (e.paymentMethod || 'Cash').toLowerCase();
-            if (method === 'cash') pExpenses += (e.amount || 0);
-            else oExpenses += (e.amount || 0);
+            const amount = Number(e.amount || 0);
+            const method = (e.paymentMethod || 'Cash').trim().toLowerCase();
+            if (method.includes('cash')) pExpenses += amount;
+            else oExpenses += amount;
         });
 
         return { physicalCash: pRevenue - pExpenses, onlineCash: oRevenue - oExpenses };
@@ -1141,15 +1142,9 @@ const AdminDailyIntelligence = ({
                                 Cash Handover Required
                             </p>
                         </div>
-                        <div className="mt-3 flex items-center gap-3">
-                            <div className="flex-1 p-2 bg-emerald-50 rounded-xl border border-emerald-100">
-                                <p className="text-[8px] font-black uppercase text-emerald-600 mb-0.5">Physical Cash</p>
-                                <p className="text-sm font-black text-emerald-950">Rs {physicalCash.toLocaleString()}</p>
-                            </div>
-                            <div className="flex-1 p-2 bg-indigo-50 rounded-xl border border-indigo-100">
-                                <p className="text-[8px] font-black uppercase text-indigo-600 mb-0.5">Online Cash</p>
-                                <p className="text-sm font-black text-indigo-950">Rs {onlineCash.toLocaleString()}</p>
-                            </div>
+                        <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-rose-500 group-hover:text-rose-700 transition-colors">
+                            <span>Click to verify daily summary</span>
+                            <ArrowRight className="h-3 w-3" />
                         </div>
                     </CardContent>
                 </Card>
@@ -1506,11 +1501,11 @@ const AdminDashboard = () => {
             const date = new Date(dateStr);
             if (!filter(date)) return;
             
-            const amount = (r.grandTotal ?? r.totalAmount ?? ((r.consultationCharges || 0) + (r.procedureCharges || 0) + (r.medicineCharges || 0)));
+            const amount = Number(r.grandTotal ?? r.totalAmount ?? ((r.consultationCharges || 0) + (r.procedureCharges || 0) + (r.medicineCharges || 0)));
             revenue += amount;
             
-            const method = (r.paymentMethod || 'Cash').toLowerCase();
-            if (method === 'cash' || method.includes('nill (cash)')) {
+            const method = (r.paymentMethod || 'Cash').trim().toLowerCase();
+            if (method.includes('cash')) {
                 physicalCashRevenue += amount;
             } else {
                 onlineCashRevenue += amount;
@@ -1527,11 +1522,11 @@ const AdminDashboard = () => {
             const date = new Date(dateStr);
             if (!filter(date)) return;
             
-            const amount = e.amount || 0;
+            const amount = Number(e.amount || 0);
             expenses += amount;
             
-            const method = (e.paymentMethod || 'Cash').toLowerCase();
-            if (method === 'cash') {
+            const method = (e.paymentMethod || 'Cash').trim().toLowerCase();
+            if (method.includes('cash')) {
                 physicalCashExpenses += amount;
             } else {
                 onlineCashExpenses += amount;
@@ -1679,7 +1674,7 @@ const AdminDashboard = () => {
                 </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                 <Card className="border-none bg-emerald-50/50 shadow-sm rounded-2xl overflow-hidden group hover:scale-[1.02] transition-all border border-emerald-100/30">
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-2">
@@ -1731,22 +1726,7 @@ const AdminDashboard = () => {
                     </CardContent>
                 </Card>
 
-                <Card className="border-none bg-blue-50/50 shadow-sm rounded-2xl overflow-hidden group hover:scale-[1.02] transition-all border border-blue-100/30">
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-2">
-                            <div className="p-2 bg-blue-500 text-white rounded-lg"><Activity className="h-4 w-4" /></div>
-                            <span className="text-[9px] font-black uppercase tracking-widest text-blue-600/60 leading-none">Online Ledger</span>
-                        </div>
-                        <div className="space-y-0.5">
-                            <div className="text-2xl font-black tracking-tighter text-slate-900 leading-none">
-                                Rs {financialMetrics.onlineCash.toLocaleString()}
-                            </div>
-                            <p className="text-[9px] font-bold text-blue-600/80 uppercase tracking-tighter">
-                                Digital Balance
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
+
 
                 <Card className="border-none bg-indigo-50/50 shadow-sm rounded-2xl overflow-hidden group hover:scale-[1.02] transition-all border border-indigo-100/50">
                     <CardContent className="p-4">
@@ -2067,6 +2047,9 @@ const DoctorDashboard = () => {
             }
         }
 
+        // Return a query that fetches TODAY'S appointments for this doctor
+        // We'll fetch all and filter in memory to avoid complex index requirements for now
+        // but ensure we are targeting the right doctor.
         return query(
             collection(firestore, 'appointments'),
             where('doctorId', '==', targetDoctorId)
@@ -2169,10 +2152,33 @@ const DoctorDashboard = () => {
                                         <TableCell className="font-medium">
                                             {format(new Date(apt.appointmentDateTime), 'hh:mm a')}
                                         </TableCell>
-                                        <TableCell>{apt.patient?.name || 'Unknown Patient'}</TableCell>
+                                        <TableCell>
+                                            <div>
+                                                <p className="font-semibold">{apt.patient?.name || 'Unknown Patient'}</p>
+                                                <p className="text-xs text-muted-foreground">{apt.patientMobileNumber}</p>
+                                            </div>
+                                        </TableCell>
                                         <TableCell><Badge variant={apt.status === 'Completed' ? 'secondary' : 'default'}>{apt.status}</Badge></TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="outline" size="sm" onClick={() => router.push(apt.patient?.id ? `/patients/details?id=${apt.patient.id}` : `/patients`)}>View Record</Button>
+                                            <div className="flex justify-end gap-2">
+                                                <Button 
+                                                    variant="outline" 
+                                                    size="sm" 
+                                                    onClick={() => router.push(apt.patient?.id ? `/patients/details?id=${apt.patient.id}` : `/patients`)}
+                                                >
+                                                    History
+                                                </Button>
+                                                {apt.status !== 'Completed' && (
+                                                    <Button 
+                                                        variant="default" 
+                                                        size="sm" 
+                                                        className="bg-primary hover:bg-primary/90"
+                                                        onClick={() => router.push(`/e-prescription?patientId=${apt.patient?.id || ''}&mobile=${apt.patientMobileNumber}`)}
+                                                    >
+                                                        Start Consultation
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -2192,14 +2198,20 @@ const DoctorDashboard = () => {
                     </CardHeader>
                     <CardContent className="grid gap-4">
                         {patientQueue.length > 0 ? patientQueue.map(apt => (
-                            <div key={apt.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                            <div key={apt.id} className="flex items-center justify-between p-3 bg-muted rounded-lg border border-transparent hover:border-primary/20 transition-all">
                                 <div>
-                                    <p className="font-semibold">{apt.patient?.name || 'Unknown'}</p>
-                                    <p className="text-sm text-muted-foreground">
+                                    <p className="font-semibold text-sm">{apt.patient?.name || 'Unknown'}</p>
+                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
                                         Waiting since {format(new Date(apt.appointmentDateTime), 'hh:mm a')}
                                     </p>
                                 </div>
-                                <Button size="sm">Start Consultation</Button>
+                                <Button 
+                                    size="sm" 
+                                    className="h-8 text-xs bg-primary hover:bg-primary/90"
+                                    onClick={() => router.push(`/e-prescription?patientId=${apt.patient?.id || ''}&mobile=${apt.patientMobileNumber}`)}
+                                >
+                                    Start Consultation
+                                </Button>
                             </div>
                         )) : (
                             <p className="text-sm text-muted-foreground text-center py-8">No patients are currently in the queue.</p>

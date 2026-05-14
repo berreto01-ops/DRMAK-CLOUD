@@ -378,8 +378,7 @@ export default function POSPage() {
                             <SelectTrigger><SelectValue/></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="cash">Cash</SelectItem>
-                                <SelectItem value="card">Card</SelectItem>
-                                <SelectItem value="upi">UPI</SelectItem>
+                                <SelectItem value="card">Card Payment</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

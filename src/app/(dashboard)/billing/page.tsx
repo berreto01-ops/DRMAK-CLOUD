@@ -914,8 +914,7 @@ export default function BillingPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="Cash">Cash (18% Tax — Consultation 0%)</SelectItem>
-                                        <SelectItem value="Card">Card (5% Tax — Consultation 0%)</SelectItem>
-                                        <SelectItem value="Online">Online Transfer (5% Tax — Consultation 0%)</SelectItem>
+                                        <SelectItem value="Card">Card Payment (5% Tax — Consultation 0%)</SelectItem>
                                         <SelectItem value="Nill">Complementary (No Collection - 0% Tax)</SelectItem>
                                     </SelectContent>
                                 </Select>

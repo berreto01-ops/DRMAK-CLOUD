@@ -205,8 +205,8 @@ export default function FinancialReportPage() {
     let onlineCashRevenue = 0;
     filteredBilling.forEach(b => {
         const amount = (b.grandTotal ?? b.totalAmount ?? ((b.consultationCharges || 0) + (b.procedureCharges || 0) + (b.medicineCharges || 0)));
-        const method = (b.paymentMethod || 'Cash').toLowerCase();
-        if (method === 'cash' || method.includes('nill (cash)')) {
+        const method = (b.paymentMethod || 'Cash').trim().toLowerCase();
+        if (method.includes('cash')) {
             physicalCashRevenue += amount;
         } else {
             onlineCashRevenue += amount;
@@ -216,9 +216,9 @@ export default function FinancialReportPage() {
     let physicalCashExpenses = 0;
     let onlineCashExpenses = 0;
     filteredExpenses.forEach((e: any) => {
-        const amount = e.amount || 0;
-        const method = (e.paymentMethod || 'Cash').toLowerCase();
-        if (method === 'cash') {
+        const amount = Number(e.amount || 0);
+        const method = (e.paymentMethod || 'Cash').trim().toLowerCase();
+        if (method.includes('cash')) {
             physicalCashExpenses += amount;
         } else {
             onlineCashExpenses += amount;

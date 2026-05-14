@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { PlusCircle, Trash2, Printer, Save, Search, Calendar, X, Send, Loader2, Shield } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectValue, SelectTrigger } from '@/components/ui/select';
+import { useSearchParams } from 'next/navigation';
 import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { collection, addDoc, updateDoc, doc, query, where, deleteDoc } from 'firebase/firestore';
 import type { Patient, Doctor, PharmacyItem, Supplier } from '@/lib/types';
@@ -345,6 +346,20 @@ export default function EPrescriptionPage() {
   const [showOtherInvestigation, setShowOtherInvestigation] = React.useState(false);
   const [showOtherProcedure, setShowOtherProcedure] = React.useState(false);
 
+  const searchParams = useSearchParams();
+  const paramPatientId = searchParams.get('patientId');
+  const paramMobile = searchParams.get('mobile');
+
+  // Auto-select patient from query params
+  React.useEffect(() => {
+    if (patients && (paramPatientId || paramMobile)) {
+      const p = patients.find(p => p.id === paramPatientId || p.mobileNumber === paramMobile);
+      if (p) {
+        setSelectedPatient(p);
+      }
+    }
+  }, [patients, paramPatientId, paramMobile]);
+
   // ─── Role Gate ──────────────────────────────────────────────────────────────
   const isAuthorized = React.useMemo(() => {
     if (isUserLoading) return true; // Wait for load
@@ -501,7 +516,7 @@ export default function EPrescriptionPage() {
         medicines, 
         procedure: procedure.join(', '),
         advice,
-        followUpDates,
+        followUp: newFollowUpDate && !followUpDates.includes(newFollowUpDate) ? [...followUpDates, newFollowUpDate].sort() : followUpDates,
         today: format(new Date(), 'dd MMMM yyyy'),
         allergies,
         coMorbids,
@@ -1154,6 +1169,7 @@ export default function EPrescriptionPage() {
                       Add Date
                     </Button>
                   </div>
+                  <p className="text-[10px] text-muted-foreground italic">Note: If you select a date but don't click "Add", it will still be included when you save.</p>
                   <div className="flex flex-wrap gap-2">
                     {followUpDates.map(date => (
                       <Badge key={date} variant="outline" className="flex items-center gap-1 pl-2.5 pr-1 py-1">
@@ -1207,7 +1223,6 @@ export default function EPrescriptionPage() {
                   followUpDates={previewRx.followUp || []}
                   today={safeFormat(previewRx.createdAt, 'dd MMMM yyyy', today)}
                   hideBranding={false}
-                  investigations={previewRx.investigations || ''}
                 />
               </div>
             </div>

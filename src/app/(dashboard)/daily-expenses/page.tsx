@@ -121,8 +121,7 @@ const CATEGORIES = [
 
 const PAYMENT_METHODS = [
     "Cash",
-    "Card",
-    "Bank Transfer"
+    "Card"
 ];
 
 export default function DailyExpensesPage() {
@@ -139,7 +138,6 @@ export default function DailyExpensesPage() {
     const [amount, setAmount] = React.useState<string>('');
     const [category, setCategory] = React.useState<string>('Supplies');
     const [description, setDescription] = React.useState<string>('');
-    const [paymentMethod, setPaymentMethod] = React.useState<string>('Cash');
     const [selectedDate, setSelectedDate] = React.useState<Date>(new Date());
     const [viewMode, setViewMode] = React.useState<'day' | 'week' | 'month' | 'history'>('day');
 
@@ -198,13 +196,7 @@ export default function DailyExpensesPage() {
         }) || []
     , [allExpenses, dateRange]);
 
-    const paymentMethodData = React.useMemo(() => {
-        const methodMap: Record<string, number> = {};
-        selectedExpensesList.forEach(exp => {
-            methodMap[exp.paymentMethod] = (methodMap[exp.paymentMethod] || 0) + exp.amount;
-        });
-        return Object.entries(methodMap).map(([name, value]) => ({ name, value }));
-    }, [selectedExpensesList]);
+
 
     const stats = React.useMemo(() => {
         if (!allExpenses) return { currentTotal: 0, monthTotal: 0, currentCount: 0, topCategory: 'N/A' };
@@ -246,7 +238,6 @@ export default function DailyExpensesPage() {
         setAmount('');
         setCategory('Supplies');
         setDescription('');
-        setPaymentMethod('Cash');
         setEditingId(null);
     };
 
@@ -266,7 +257,7 @@ export default function DailyExpensesPage() {
                 amount: Number(amount),
                 category,
                 description,
-                paymentMethod,
+                paymentMethod: 'Cash',
                 timestamp: new Date().toISOString(),
                 addedBy: user?.email || 'Unknown'
             });
@@ -282,7 +273,6 @@ export default function DailyExpensesPage() {
         setAmount(expense.amount.toString());
         setCategory(expense.category);
         setDescription(expense.description);
-        setPaymentMethod(expense.paymentMethod);
         setEditingId(expense.id!);
         setIsEditOpen(true);
     };
@@ -304,7 +294,7 @@ export default function DailyExpensesPage() {
                 amount: Number(amount),
                 category,
                 description,
-                paymentMethod,
+                paymentMethod: 'Cash',
             });
             toast({ title: 'Success', description: 'Expense updated successfully.' });
             setIsEditOpen(false);
@@ -393,32 +383,14 @@ export default function DailyExpensesPage() {
                             <Label htmlFor="amount" className="text-xs font-black uppercase text-slate-500 ml-1">Amount (Rs)</Label>
                             <Input id="amount" type="number" placeholder="0.00" className="rounded-xl h-12 bg-slate-50 border-none focus-visible:ring-emerald-500 font-bold" value={amount} onChange={e => setAmount(e.target.value)} />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2">
-                                <Label className="text-xs font-black uppercase text-slate-500 ml-1">Category</Label>
-                                <Select value={category} onValueChange={setCategory}>
-                                    <SelectTrigger className="rounded-xl h-12 bg-slate-50 border-none"><SelectValue placeholder="Select Category" /></SelectTrigger>
-                                    <SelectContent>
-                                        {CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label className="text-xs font-black uppercase text-slate-500 ml-1">Channel</Label>
-                                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                                    <SelectTrigger className="rounded-xl h-12 bg-slate-50 border-none">
-                                        <SelectValue placeholder="Select Channel" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <div className="px-2 py-1.5 text-[10px] font-black uppercase text-slate-400 tracking-widest">Physical Ledger</div>
-                                        <SelectItem value="Cash">Physical Cash (In-Hand)</SelectItem>
-                                        <Separator className="my-1" />
-                                        <div className="px-2 py-1.5 text-[10px] font-black uppercase text-slate-400 tracking-widest">Digital Ledger</div>
-                                        <SelectItem value="Card">Card Payment</SelectItem>
-                                        <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                        <div className="grid gap-2">
+                            <Label className="text-xs font-black uppercase text-slate-500 ml-1">Category</Label>
+                            <Select value={category} onValueChange={setCategory}>
+                                <SelectTrigger className="rounded-xl h-12 bg-slate-50 border-none"><SelectValue placeholder="Select Category" /></SelectTrigger>
+                                <SelectContent>
+                                    {CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="description" className="text-xs font-black uppercase text-slate-500 ml-1">Reason / Description</Label>
@@ -492,51 +464,7 @@ export default function DailyExpensesPage() {
 
             {/* Analysis Row */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="bg-white/50 backdrop-blur-sm border-slate-200/60 shadow-lg">
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-3">
-                            <div className="p-2 rounded-xl bg-primary/10">
-                                <PieChart className="h-5 w-5 text-primary" />
-                            </div>
-                            Payment Channels
-                        </CardTitle>
-                        <CardDescription>
-                            {viewMode === 'day' 
-                                ? `Breakdown for ${format(selectedDate, 'PP')}`
-                                : viewMode === 'history' ? "Historical usage by payment method" : `Range aggregation from ${format(dateRange.start, 'MMM dd')} to ${format(dateRange.end, 'MMM dd')}`
-                            }
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="h-[250px]">
-                        {paymentMethodData.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-full text-muted-foreground/40 italic text-sm">
-                                <Receipt className="h-8 w-8 mb-2 opacity-20" />
-                                No data for selected range
-                            </div>
-                        ) : (
-                            <ChartContainer config={chartConfig} className="h-full w-full">
-                                <RechartsPieChart>
-                                    <Pie
-                                        data={paymentMethodData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={80}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                        strokeWidth={0}
-                                    >
-                                        {paymentMethodData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <ChartTooltip content={<ChartTooltipContent />} />
-                                    <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 'bold' }} />
-                                </RechartsPieChart>
-                            </ChartContainer>
-                        )}
-                    </CardContent>
-                </Card>
+
 
                 <Card className="relative overflow-hidden group bg-slate-900 border-none shadow-2xl">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))]" />
@@ -578,30 +506,14 @@ export default function DailyExpensesPage() {
                             <Label htmlFor="edit-amount" className="text-xs font-black uppercase text-slate-500 ml-1">Amount (Rs)</Label>
                             <Input id="edit-amount" type="number" className="rounded-xl h-12 bg-slate-50 border-none focus-visible:ring-indigo-500 font-bold" value={amount} onChange={e => setAmount(e.target.value)} />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2">
-                                <Label className="text-xs font-black uppercase text-slate-500 ml-1">Category</Label>
-                                <Select value={category} onValueChange={setCategory}>
-                                    <SelectTrigger className="rounded-xl h-12 bg-slate-50 border-none"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        {CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label className="text-xs font-black uppercase text-slate-500 ml-1">Channel</Label>
-                                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                                    <SelectTrigger className="rounded-xl h-12 bg-slate-50 border-none"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <div className="px-2 py-1.5 text-[10px] font-black uppercase text-slate-400 tracking-widest">Physical Ledger</div>
-                                        <SelectItem value="Cash">Physical Cash (In-Hand)</SelectItem>
-                                        <Separator className="my-1" />
-                                        <div className="px-2 py-1.5 text-[10px] font-black uppercase text-slate-400 tracking-widest">Digital Ledger</div>
-                                        <SelectItem value="Card">Card Payment</SelectItem>
-                                        <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                        <div className="grid gap-2">
+                            <Label className="text-xs font-black uppercase text-slate-500 ml-1">Category</Label>
+                            <Select value={category} onValueChange={setCategory}>
+                                <SelectTrigger className="rounded-xl h-12 bg-slate-50 border-none"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="edit-description" className="text-xs font-black uppercase text-slate-500 ml-1">Description</Label>
@@ -654,7 +566,6 @@ export default function DailyExpensesPage() {
                                             <TableHead className="font-black text-slate-500 text-[10px] uppercase tracking-widest pl-6">Time</TableHead>
                                             <TableHead className="font-black text-slate-500 text-[10px] uppercase tracking-widest">Classification</TableHead>
                                             <TableHead className="font-black text-slate-500 text-[10px] uppercase tracking-widest">Operational Detail</TableHead>
-                                            <TableHead className="font-black text-slate-500 text-[10px] uppercase tracking-widest">Channel</TableHead>
                                             <TableHead className="text-right font-black text-slate-500 text-[10px] uppercase tracking-widest pr-6">Value (Rs)</TableHead>
                                             <TableHead className="w-[80px]"></TableHead>
                                         </TableRow>
@@ -673,12 +584,7 @@ export default function DailyExpensesPage() {
                                                 <TableCell className="font-medium text-slate-700 max-w-[300px] truncate">
                                                     {expense.description}
                                                 </TableCell>
-                                                <TableCell>
-                                                    <div className={`flex items-center gap-1.5 font-black text-[11px] ${expense.paymentMethod === 'Cash' ? 'text-emerald-600 bg-emerald-50' : 'text-indigo-600 bg-indigo-50'} px-3 py-1 rounded-full w-fit`}>
-                                                        <div className={`w-1.5 h-1.5 rounded-full ${expense.paymentMethod === 'Cash' ? 'bg-emerald-500' : 'bg-indigo-500'}`} />
-                                                        {expense.paymentMethod === 'Cash' ? 'Physical Cash' : expense.paymentMethod}
-                                                    </div>
-                                                </TableCell>
+
                                                 <TableCell className="text-right pr-6">
                                                     <span className="font-black text-slate-900">{expense.amount.toLocaleString()}</span>
                                                 </TableCell>
@@ -776,7 +682,6 @@ export default function DailyExpensesPage() {
                                                                     <TableHead className="text-[10px] font-black uppercase text-slate-400 pl-6">Instant</TableHead>
                                                                     <TableHead className="text-[10px] font-black uppercase text-slate-400">Sphere</TableHead>
                                                                     <TableHead className="text-[10px] font-black uppercase text-slate-400">Allocation Narrative</TableHead>
-                                                                    <TableHead className="text-[10px] font-black uppercase text-slate-400">Method</TableHead>
                                                                     <TableHead className="text-right text-[10px] font-black uppercase text-slate-400 pr-6">Value (Rs)</TableHead>
                                                                 </TableRow>
                                                             </TableHeader>
@@ -794,11 +699,7 @@ export default function DailyExpensesPage() {
                                                                         <TableCell className="text-sm font-medium text-slate-700 py-3">
                                                                             {item.description}
                                                                         </TableCell>
-                                                                        <TableCell>
-                                                                            <span className="text-[10px] font-black text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-md">
-                                                                                {item.paymentMethod}
-                                                                            </span>
-                                                                        </TableCell>
+
                                                                         <TableCell className="text-right font-black text-slate-900 pr-6">
                                                                             {item.amount.toLocaleString()}
                                                                         </TableCell>
@@ -866,7 +767,6 @@ export default function DailyExpensesPage() {
                                     <TableHead>Date</TableHead>
                                     <TableHead>Category</TableHead>
                                     <TableHead>Description</TableHead>
-                                    <TableHead>Payment</TableHead>
                                     <TableHead className="text-right">Amount (Rs)</TableHead>
                                     <TableHead className="w-[100px]"></TableHead>
                                 </TableRow>
@@ -883,9 +783,7 @@ export default function DailyExpensesPage() {
                                         <TableCell className="max-w-[200px] truncate" title={expense.description}>
                                             {expense.description}
                                         </TableCell>
-                                        <TableCell>
-                                            <Badge variant="secondary" className="font-bold">{expense.paymentMethod}</Badge>
-                                        </TableCell>
+
                                         <TableCell className="text-right font-bold text-red-600">
                                             - {expense.amount.toLocaleString()}
                                         </TableCell>
