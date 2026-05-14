@@ -10,12 +10,12 @@ export const useNotifications = () => {
 
     // 1. Pending Prescriptions (Operations Manager)
     const prescQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
+        if (!firestore || !userId) return null;
         return query(
             collection(firestore, 'prescriptions'),
             where('printStatus', '==', 'Pending')
         );
-    }, [firestore]);
+    }, [firestore, userId]);
     const { data: prescriptions } = useCollection(prescQuery);
 
     // 2. New Leads (Sales / Digital)

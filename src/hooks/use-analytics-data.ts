@@ -1,6 +1,6 @@
 'use client';
 import * as React from 'react';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { format } from 'date-fns';
 
@@ -38,6 +38,8 @@ export type RevenueTrend = {
 
 export function useAnalyticsData() {
     const firestore = useFirestore();
+    const { user } = useUser();
+    const userId = user?.id;
     const [isLoading, setIsLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [performanceData, setPerformanceData] = React.useState<PerformanceMetric[]>([]);
@@ -59,7 +61,7 @@ export function useAnalyticsData() {
     });
 
     const fetchData = React.useCallback(async () => {
-        if (!firestore) return;
+        if (!firestore || !userId) return;
         setIsLoading(true);
         setError(null);
 
@@ -242,7 +244,7 @@ export function useAnalyticsData() {
 
     React.useEffect(() => {
         fetchData();
-    }, [fetchData]);
+    }, [fetchData, userId]);
 
     return {
         isLoading,

@@ -142,6 +142,7 @@ export default function BillingPage() {
     const [discountType, setDiscountType] = React.useState<'percentage' | 'fixed'>('percentage');
     const [discountValue, setDiscountValue] = React.useState<number>(0);
     const [paymentMethod, setPaymentMethod] = React.useState<'Cash' | 'Card' | 'Online' | 'Nill' | ''>('');
+    const [nilTaxSubMethod, setNilTaxSubMethod] = React.useState<'Cash' | 'Online' | ''>('');
     const [originalBillItems, setOriginalBillItems] = React.useState<BillItem[]>([]);
 
     const [activeTab, setActiveTab] = React.useState('new-bill');
@@ -628,7 +629,7 @@ export default function BillingPage() {
             taxRate,
             taxAmount,
             grandTotal,
-            paymentMethod,
+            paymentMethod: paymentMethod === 'Nill' ? `Nill (${nilTaxSubMethod})` : paymentMethod,
             timestamp: editingBillId ? (billingRecords?.find(b => b.id === editingBillId)?.timestamp || new Date().toISOString()) : new Date().toISOString(),
             status: 'Paid',
             addedBy: user?.email || 'Unknown',
@@ -686,6 +687,7 @@ export default function BillingPage() {
         setReimbursements([]);
         setDiscountValue(0);
         setPaymentMethod('');
+        setNilTaxSubMethod('');
         setEditingBillId(null);
         setOriginalBillItems([]);
         setEditReason('');
@@ -705,7 +707,14 @@ export default function BillingPage() {
         setReimbursements(bill.reimbursements || []);
         setDiscountType(bill.discountType);
         setDiscountValue(bill.discountValue);
-        setPaymentMethod(bill.paymentMethod as any);
+        if (bill.paymentMethod.startsWith('Nill')) {
+            setPaymentMethod('Nill');
+            const sub = bill.paymentMethod.match(/\((.*?)\)/)?.[1];
+            setNilTaxSubMethod(sub as any || '');
+        } else {
+            setPaymentMethod(bill.paymentMethod as any);
+            setNilTaxSubMethod('');
+        }
         setEditingBillId(bill.id);
         setEditReason(''); // Clear any previous reason
         setActiveTab('new-bill');
@@ -896,8 +905,10 @@ export default function BillingPage() {
                         <div className={`space - y - 4 transition - opacity duration - 200 ${!selectedPatient ? 'opacity-40 pointer-events-none select-none' : ''} `}>
 
                             <div className="space-y-1.5">
-                                <Label>Payment Method</Label>
-                                <Select onValueChange={(value: any) => setPaymentMethod(value)} value={paymentMethod} disabled={!selectedPatient}>
+                                <Select onValueChange={(value: any) => {
+                                    setPaymentMethod(value);
+                                    if (value !== 'Nill') setNilTaxSubMethod('');
+                                }} value={paymentMethod} disabled={!selectedPatient}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select payment method..." />
                                     </SelectTrigger>
@@ -909,6 +920,22 @@ export default function BillingPage() {
                                     </SelectContent>
                                 </Select>
                             </div>
+
+                            {paymentMethod === 'Nill' && (
+                                <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
+                                    <Label className="text-xs font-bold text-primary">Track Nill Collection As:</Label>
+                                    <Select onValueChange={(value: any) => setNilTaxSubMethod(value)} value={nilTaxSubMethod}>
+                                        <SelectTrigger className="h-9 border-primary/30">
+                                            <SelectValue placeholder="Select sub-method..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Cash">Physical Cash</SelectItem>
+                                            <SelectItem value="Online">Online Transfer</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-[10px] text-muted-foreground italic">Required to balance your daily cash-in-hand reports.</p>
+                                </div>
+                            )}
 
                             <Separator className="my-2" />
 
@@ -1287,7 +1314,7 @@ export default function BillingPage() {
                             {editingBillId && (
                                 <Button variant="outline" onClick={handleClear} className="border-red-200 text-red-600 hover:bg-red-50">Clear</Button>
                             )}
-                            <Button variant="outline" onClick={handleSaveBill} disabled={!selectedPatient || !paymentMethod || billItems.length === 0}>
+                            <Button variant="outline" onClick={handleSaveBill} disabled={!selectedPatient || !paymentMethod || (paymentMethod === 'Nill' && !nilTaxSubMethod) || billItems.length === 0}>
                                 <CheckCircle2 className="mr-2 h-4 w-4" /> {editingBillId ? 'Update Record' : 'Save Record'}
                             </Button>
                         </div>
@@ -1399,8 +1426,8 @@ export default function BillingPage() {
                                                 <TableCell>
                                                     <span className={cn(
                                                         "text-[10px] font-bold uppercase px-2 py-0.5 rounded-md border",
-                                                        bill.paymentMethod === 'Cash' ? "bg-green-50 text-green-700 border-green-200" :
-                                                        bill.paymentMethod === 'Card' ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                                        (bill.paymentMethod === 'Cash' || bill.paymentMethod === 'Nill (Cash)') ? "bg-green-50 text-green-700 border-green-200" :
+                                                        (bill.paymentMethod === 'Card' || bill.paymentMethod === 'Online' || bill.paymentMethod === 'Nill (Online)') ? "bg-blue-50 text-blue-700 border-blue-200" :
                                                         "bg-amber-50 text-amber-700 border-amber-200"
                                                     )}>
                                                         {bill.paymentMethod}

@@ -122,8 +122,7 @@ const CATEGORIES = [
 const PAYMENT_METHODS = [
     "Cash",
     "Card",
-    "Bank Transfer",
-    "UPI"
+    "Bank Transfer"
 ];
 
 export default function DailyExpensesPage() {
@@ -407,9 +406,16 @@ export default function DailyExpensesPage() {
                             <div className="grid gap-2">
                                 <Label className="text-xs font-black uppercase text-slate-500 ml-1">Channel</Label>
                                 <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                                    <SelectTrigger className="rounded-xl h-12 bg-slate-50 border-none"><SelectValue placeholder="Select Method" /></SelectTrigger>
+                                    <SelectTrigger className="rounded-xl h-12 bg-slate-50 border-none">
+                                        <SelectValue placeholder="Select Channel" />
+                                    </SelectTrigger>
                                     <SelectContent>
-                                        {PAYMENT_METHODS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                                        <div className="px-2 py-1.5 text-[10px] font-black uppercase text-slate-400 tracking-widest">Physical Ledger</div>
+                                        <SelectItem value="Cash">Physical Cash (In-Hand)</SelectItem>
+                                        <Separator className="my-1" />
+                                        <div className="px-2 py-1.5 text-[10px] font-black uppercase text-slate-400 tracking-widest">Digital Ledger</div>
+                                        <SelectItem value="Card">Card Payment</SelectItem>
+                                        <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -587,7 +593,12 @@ export default function DailyExpensesPage() {
                                 <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                                     <SelectTrigger className="rounded-xl h-12 bg-slate-50 border-none"><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        {PAYMENT_METHODS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                                        <div className="px-2 py-1.5 text-[10px] font-black uppercase text-slate-400 tracking-widest">Physical Ledger</div>
+                                        <SelectItem value="Cash">Physical Cash (In-Hand)</SelectItem>
+                                        <Separator className="my-1" />
+                                        <div className="px-2 py-1.5 text-[10px] font-black uppercase text-slate-400 tracking-widest">Digital Ledger</div>
+                                        <SelectItem value="Card">Card Payment</SelectItem>
+                                        <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -663,9 +674,9 @@ export default function DailyExpensesPage() {
                                                     {expense.description}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="flex items-center gap-1.5 font-black text-[11px] text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full w-fit">
-                                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                                        {expense.paymentMethod}
+                                                    <div className={`flex items-center gap-1.5 font-black text-[11px] ${expense.paymentMethod === 'Cash' ? 'text-emerald-600 bg-emerald-50' : 'text-indigo-600 bg-indigo-50'} px-3 py-1 rounded-full w-fit`}>
+                                                        <div className={`w-1.5 h-1.5 rounded-full ${expense.paymentMethod === 'Cash' ? 'bg-emerald-500' : 'bg-indigo-500'}`} />
+                                                        {expense.paymentMethod === 'Cash' ? 'Physical Cash' : expense.paymentMethod}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-right pr-6">

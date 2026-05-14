@@ -224,6 +224,9 @@ export default function TodaySummaryPage() {
 
         let expectedCash = 0;
         let onlineTransferRevenue = 0;
+        let physicalCashExpenses = 0;
+        let digitalExpenses = 0;
+        
         filteredRecords.forEach(record => {
             // Count procedures
             record.items?.forEach(item => {
@@ -238,10 +241,10 @@ export default function TodaySummaryPage() {
 
             // Count payments
             const method = (record.paymentMethod || 'Unknown').toLowerCase();
-            if (method === 'cash') {
+            if (method === 'cash' || method.includes('nill (cash)')) {
                 expectedCash += record.grandTotal || 0;
             }
-            if (method === 'online') {
+            if (method === 'online' || method.includes('nill (online)')) {
                 onlineTransferRevenue += record.grandTotal || 0;
             }
             
@@ -256,10 +259,16 @@ export default function TodaySummaryPage() {
         filteredExpenses.forEach(e => {
             const cat = e.category || 'General';
             expenseCategoriesMap[cat] = (expenseCategoriesMap[cat] || 0) + (e.amount || 0);
+            
+            if ((e.paymentMethod || 'Cash').toLowerCase() === 'cash') {
+                physicalCashExpenses += (e.amount || 0);
+            } else {
+                digitalExpenses += (e.amount || 0);
+            }
         });
 
-        // Net Cash Handover = Cash collected - Total Expenses
-        const netExpectedCash = expectedCash - totalExpenses;
+        // Net Cash Handover = Cash collected - Physical Cash Expenses
+        const netExpectedCash = expectedCash - physicalCashExpenses;
 
         const totalPhysicalCash = filteredClosings.reduce((sum, c) => sum + (c.cashHandedOver || 0), 0);
 
@@ -278,7 +287,9 @@ export default function TodaySummaryPage() {
             expectedCash: netExpectedCash,
             totalPhysicalCash,
             onlineTransferRevenue,
-            totalTax
+            totalTax,
+            physicalCashExpenses,
+            digitalExpenses
         };
     }, [filteredRecords, filteredExpenses, filteredClosings]);
 
@@ -455,8 +466,12 @@ export default function TodaySummaryPage() {
                                     <p className="text-xs font-black uppercase text-slate-400 mb-1">System Record</p>
                                     <p className="text-2xl font-black text-slate-400 tracking-tighter">Rs {stats.expectedCash.toLocaleString()}</p>
                                 </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs font-black uppercase text-indigo-600 mb-1">Physical Cash Handed Over</p>
+                                <div className="space-y-1 ml-8">
+                                    <p className="text-xs font-black uppercase text-rose-400 mb-1">Cash Outflow</p>
+                                    <p className="text-2xl font-black text-rose-400 tracking-tighter">- {stats.physicalCashExpenses.toLocaleString()}</p>
+                                </div>
+                                <div className="space-y-1 ml-8">
+                                    <p className="text-xs font-black uppercase text-indigo-600 mb-1">Physical Handover</p>
                                     <p className="text-6xl font-black text-black tracking-tighter">Rs {(periodMode === 'Day' ? parseFloat(cashHandedOver || '0') : stats.totalPhysicalCash).toLocaleString()}</p>
                                 </div>
                             </div>
@@ -521,7 +536,7 @@ export default function TodaySummaryPage() {
                                 <div>
                                     <h4 className="text-xl font-black tracking-tight">Handover Discrepancy Alert!</h4>
                                     <p className="font-bold opacity-90 text-sm">
-                                        The physical cash entered does not match the system record. After deducting all expenses, the counter should have exactly <span className="underline decoration-white/50">Rs {stats.expectedCash.toLocaleString()}</span> for handover.
+                                        The physical cash entered does not match the system record. After deducting physical cash expenses (Rs {stats.physicalCashExpenses.toLocaleString()}), the counter should have exactly <span className="underline decoration-white/50">Rs {stats.expectedCash.toLocaleString()}</span> for handover.
                                     </p>
                                 </div>
                             </div>
@@ -687,6 +702,17 @@ export default function TodaySummaryPage() {
                                         </div>
                                     </div>
                                 ))}
+                                <Separator className="my-4" />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100">
+                                        <div className="text-[9px] font-black uppercase text-emerald-600 tracking-widest mb-1">Physical Cash Spent</div>
+                                        <div className="text-sm font-black text-emerald-900">Rs {stats.physicalCashExpenses.toLocaleString()}</div>
+                                    </div>
+                                    <div className="p-3 bg-indigo-50 rounded-2xl border border-indigo-100">
+                                        <div className="text-[9px] font-black uppercase text-indigo-600 tracking-widest mb-1">Digital Ledger Spent</div>
+                                        <div className="text-sm font-black text-indigo-900">Rs {stats.digitalExpenses.toLocaleString()}</div>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </CardContent>
@@ -736,11 +762,13 @@ export default function TodaySummaryPage() {
                                         </TableCell>
                                         <TableCell>
                                             <Badge className={`font-black text-[10px] uppercase rounded-lg border-none ${
-                                                record.paymentMethod === 'Cash' ? 'bg-emerald-100 text-emerald-700' :
-                                                record.paymentMethod === 'Card' ? 'bg-indigo-100 text-indigo-700' :
+                                                (record.paymentMethod === 'Cash' || record.paymentMethod === 'Nill (Cash)') ? 'bg-emerald-100 text-emerald-700' :
+                                                (record.paymentMethod === 'Card' || record.paymentMethod === 'Online' || record.paymentMethod === 'Nill (Online)') ? 'bg-indigo-100 text-indigo-700' :
                                                 'bg-slate-100 text-slate-600'
                                             }`}>
-                                                {record.paymentMethod || 'N/A'}
+                                                {(record.paymentMethod === 'Cash' || record.paymentMethod === 'Nill (Cash)') ? 'Physical Cash' : 
+                                                 (record.paymentMethod === 'Online' || record.paymentMethod === 'Nill (Online)') ? 'Online Transfer' : 
+                                                 record.paymentMethod || 'N/A'}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-center font-bold text-rose-600 bg-rose-50/50 rounded-lg">
@@ -784,6 +812,7 @@ export default function TodaySummaryPage() {
                                     <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest">Time</TableHead>
                                     <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest">Category</TableHead>
                                     <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest">Description</TableHead>
+                                    <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest">Channel</TableHead>
                                     <TableHead className="font-black text-slate-900 uppercase text-[10px] tracking-widest text-right">Outflow (PKR)</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -801,6 +830,11 @@ export default function TodaySummaryPage() {
                                         <TableCell>
                                             <div className="font-black text-slate-900 tracking-tight capitalize">{expense.description || 'No description'}</div>
                                             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Rec: {expense.recordedBy || 'System'}</div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className={`flex items-center gap-1.5 font-black text-[10px] ${expense.paymentMethod === 'Cash' ? 'text-emerald-600 bg-emerald-50' : 'text-indigo-600 bg-indigo-50'} px-2 py-0.5 rounded-md w-fit uppercase`}>
+                                                {expense.paymentMethod === 'Cash' ? 'Physical Cash' : expense.paymentMethod || 'Cash'}
+                                            </div>
                                         </TableCell>
                                         <TableCell className="text-right font-black text-rose-600">
                                             {expense.amount?.toLocaleString()}

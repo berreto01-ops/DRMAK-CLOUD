@@ -589,21 +589,47 @@ const OrganizationDashboard = () => {
     const stats = React.useMemo(() => {
         const today = startOfDay(new Date()).getTime();
         
-        const revenue = (billingRecords || []).filter(r => {
+        let revenue = 0;
+        let physicalCashRevenue = 0;
+        let onlineCashRevenue = 0;
+        
+        (billingRecords || []).forEach(r => {
             const dateStr = r.timestamp || r.billingDate;
-            if (!dateStr) return false;
+            if (!dateStr) return;
             const date = new Date(dateStr);
-            if (isNaN(date.getTime())) return false;
-            return startOfDay(date).getTime() === today;
-        }).reduce((acc, r) => acc + (r.grandTotal ?? r.totalAmount ?? ((r.consultationCharges || 0) + (r.procedureCharges || 0) + (r.medicineCharges || 0))), 0);
+            if (isNaN(date.getTime()) || startOfDay(date).getTime() !== today) return;
             
-        const expenses = (allExpenses || []).filter((e: any) => {
+            const amount = (r.grandTotal ?? r.totalAmount ?? ((r.consultationCharges || 0) + (r.procedureCharges || 0) + (r.medicineCharges || 0)));
+            revenue += amount;
+            
+            const method = (r.paymentMethod || 'Cash').toLowerCase();
+            if (method === 'cash' || method.includes('nill (cash)')) {
+                physicalCashRevenue += amount;
+            } else {
+                onlineCashRevenue += amount;
+            }
+        });
+
+        let expenses = 0;
+        let physicalCashExpenses = 0;
+        let onlineCashExpenses = 0;
+
+        (allExpenses || []).forEach((e: any) => {
             const dateStr = e.timestamp || e.date || e.createdAt;
-            if (!dateStr) return false;
+            if (!dateStr) return;
             const date = new Date(dateStr);
-            if (isNaN(date.getTime())) return false;
-            return startOfDay(date).getTime() === today;
-        }).reduce((acc: number, e: any) => acc + (e.amount || 0), 0);
+            if (isNaN(date.getTime()) || startOfDay(date).getTime() !== today) return;
+            
+            const amount = e.amount || 0;
+            expenses += amount;
+            
+            const method = (e.paymentMethod || 'Cash').toLowerCase();
+            if (method === 'cash') {
+                physicalCashExpenses += amount;
+            } else {
+                onlineCashExpenses += amount;
+            }
+        });
             
         const dailyAppointments = (appointments || []).filter(a => {
             if (!a.appointmentDateTime) return false;
@@ -613,7 +639,15 @@ const OrganizationDashboard = () => {
         });
         const completed = dailyAppointments.filter(a => a.status === 'Completed').length;
 
-        return { revenue, expenses, profit: revenue - expenses, totalAppointments: dailyAppointments.length, completed };
+        return { 
+            revenue, 
+            expenses, 
+            profit: revenue - expenses, 
+            totalAppointments: dailyAppointments.length, 
+            completed,
+            physicalCash: physicalCashRevenue - physicalCashExpenses,
+            onlineCash: onlineCashRevenue - onlineCashExpenses
+        };
     }, [billingRecords, allExpenses, appointments]);
 
 
@@ -658,7 +692,7 @@ const OrganizationDashboard = () => {
             <AdminViewSwitcher />
 
             {/* Financial Multi-Pillar Executive Summary */}
-            <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-3">
+            <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-3 lg:grid-cols-5">
                 <Card className="border-none bg-emerald-50/50 shadow-xl shadow-emerald-100/20 rounded-[2.5rem] overflow-hidden border border-emerald-100/30">
                     <CardContent className="p-8">
                         <div className="flex items-center justify-between mb-6">
@@ -688,8 +722,37 @@ const OrganizationDashboard = () => {
                         </div>
                     </CardContent>
                 </Card>
+                <Card className="border-none bg-emerald-50/30 shadow-xl shadow-emerald-100/20 rounded-[2.5rem] overflow-hidden border border-emerald-100/30">
+                    <CardContent className="p-8">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="p-4 bg-emerald-500 text-white rounded-2xl shadow-lg shadow-emerald-200"><Coins className="h-6 w-6" /></div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600/60 leading-none">Physical Cash</span>
+                        </div>
+                        <div className="space-y-1">
+                            <div className="text-4xl font-black tracking-tighter text-slate-900 leading-none">
+                                Rs {stats.physicalCash.toLocaleString()}
+                            </div>
+                            <p className="text-xs font-bold text-emerald-600/80 uppercase tracking-tighter">In-Hand / Safe</p>
+                        </div>
+                    </CardContent>
+                </Card>
 
-                <Card className="border-none bg-indigo-50/50 shadow-xl shadow-indigo-100/20 rounded-[2.5rem] overflow-hidden border-2 border-indigo-100/50">
+                <Card className="border-none bg-blue-50/30 shadow-xl shadow-blue-100/20 rounded-[2.5rem] overflow-hidden border border-blue-100/30">
+                    <CardContent className="p-8">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="p-4 bg-blue-500 text-white rounded-2xl shadow-lg shadow-blue-200"><Activity className="h-6 w-6" /></div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-blue-600/60 leading-none">Online Cash</span>
+                        </div>
+                        <div className="space-y-1">
+                            <div className="text-4xl font-black tracking-tighter text-slate-900 leading-none">
+                                Rs {stats.onlineCash.toLocaleString()}
+                            </div>
+                            <p className="text-xs font-bold text-blue-600/80 uppercase tracking-tighter">Digital Ledger</p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-none bg-indigo-50/30 shadow-xl shadow-indigo-100/20 rounded-[2.5rem] overflow-hidden border border-indigo-100/30">
                     <CardContent className="p-8">
                         <div className="flex items-center justify-between mb-6">
                             <div className="p-4 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-200"><CircleDollarSign className="h-6 w-6" /></div>
@@ -699,7 +762,7 @@ const OrganizationDashboard = () => {
                             <div className={`text-4xl font-black tracking-tighter leading-none ${stats.profit >= 0 ? 'text-slate-900' : 'text-rose-600'}`}>
                                 Rs {stats.profit.toLocaleString()}
                             </div>
-                            <p className="text-xs font-bold text-indigo-600/80 uppercase tracking-tighter">Bottom Line Position</p>
+                            <p className="text-xs font-bold text-indigo-600/80 uppercase tracking-tighter">Bottom Line</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -978,6 +1041,27 @@ const AdminDailyIntelligence = ({
         }));
     }, [prescriptions]);
 
+    const { physicalCash, onlineCash } = React.useMemo(() => {
+        let pRevenue = 0;
+        let oRevenue = 0;
+        billingRecords.filter(r => dateFilter(r.timestamp || r.billingDate)).forEach(r => {
+            const amount = r.grandTotal ?? r.totalAmount ?? ((r.consultationCharges || 0) + (r.procedureCharges || 0) + (r.medicineCharges || 0));
+            const method = (r.paymentMethod || 'Cash').toLowerCase();
+            if (method === 'cash' || method.includes('nill (cash)')) pRevenue += amount;
+            else oRevenue += amount;
+        });
+
+        let pExpenses = 0;
+        let oExpenses = 0;
+        allExpenses.filter((e: any) => dateFilter(e.timestamp || e.date || e.createdAt)).forEach((e: any) => {
+            const method = (e.paymentMethod || 'Cash').toLowerCase();
+            if (method === 'cash') pExpenses += (e.amount || 0);
+            else oExpenses += (e.amount || 0);
+        });
+
+        return { physicalCash: pRevenue - pExpenses, onlineCash: oRevenue - oExpenses };
+    }, [billingRecords, allExpenses, dateFilter]);
+
     return (
         <>
             <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-3">
@@ -1039,19 +1123,25 @@ const AdminDailyIntelligence = ({
                     <CardContent className="p-6">
                         <div className="flex items-center justify-between mb-4">
                             <div className="p-3 bg-rose-600 text-white rounded-xl shadow-lg shadow-rose-200"><CircleDollarSign className="h-5 w-5" /></div>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-rose-600/60 leading-none">Expense Tracker</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-rose-600/60 leading-none">Net Position</span>
                         </div>
                         <div className="space-y-1">
                             <div className="text-3xl font-black tracking-tighter text-slate-900 leading-none">
-                                Rs {totalExpenses.toLocaleString()}
+                                Rs {(totalPurchases - totalExpenses).toLocaleString()}
                             </div>
                             <p className="text-[10px] font-bold text-rose-600/80 uppercase tracking-tighter">
-                                {todayExpenses.length} Expense Entries
+                                Cash Handover Required
                             </p>
                         </div>
-                        <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-rose-500 group-hover:text-rose-700 transition-colors">
-                            <span>Click to view expenses</span>
-                            <ArrowRight className="h-3 w-3" />
+                        <div className="mt-3 flex items-center gap-3">
+                            <div className="flex-1 p-2 bg-emerald-50 rounded-xl border border-emerald-100">
+                                <p className="text-[8px] font-black uppercase text-emerald-600 mb-0.5">Physical Cash</p>
+                                <p className="text-sm font-black text-emerald-950">Rs {physicalCash.toLocaleString()}</p>
+                            </div>
+                            <div className="flex-1 p-2 bg-indigo-50 rounded-xl border border-indigo-100">
+                                <p className="text-[8px] font-black uppercase text-indigo-600 mb-0.5">Online Cash</p>
+                                <p className="text-sm font-black text-indigo-950">Rs {onlineCash.toLocaleString()}</p>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
@@ -1385,7 +1475,7 @@ const AdminDashboard = () => {
     }, [enrichedAppointments, selectedDate]);
 
     const financialMetrics = React.useMemo(() => {
-        if (!selectedDate && periodMode !== 'range') return { revenue: 0, expenses: 0, profit: 0 };
+        if (!selectedDate && periodMode !== 'range') return { revenue: 0, expenses: 0, profit: 0, physicalCash: 0, onlineCash: 0 };
         
         const filter = (itemDate: Date) => {
             if (isNaN(itemDate.getTime())) return false;
@@ -1398,20 +1488,55 @@ const AdminDashboard = () => {
             return false;
         };
 
-        // Use timestamp (actual field) with billingDate as fallback
-        const revenue = (billingRecords || [])
-            .filter(r => {
-                const dateStr = r.timestamp || r.billingDate;
-                return dateStr ? filter(new Date(dateStr)) : false;
-            })
-            .reduce((acc, r) => acc + (r.grandTotal ?? r.totalAmount ?? ((r.consultationCharges || 0) + (r.procedureCharges || 0) + (r.medicineCharges || 0))), 0);
-            
-        const expenses = (allExpenses || []).filter((e: any) => {
-            const dateStr = e.timestamp || e.date || e.createdAt;
-            return dateStr ? filter(new Date(dateStr)) : false;
-        }).reduce((acc: number, e: any) => acc + (e.amount || 0), 0);
+        let revenue = 0;
+        let physicalCashRevenue = 0;
+        let onlineCashRevenue = 0;
 
-        return { revenue, expenses, profit: revenue - expenses };
+        (billingRecords || []).forEach(r => {
+            const dateStr = r.timestamp || r.billingDate;
+            if (!dateStr) return;
+            const date = new Date(dateStr);
+            if (!filter(date)) return;
+            
+            const amount = (r.grandTotal ?? r.totalAmount ?? ((r.consultationCharges || 0) + (r.procedureCharges || 0) + (r.medicineCharges || 0)));
+            revenue += amount;
+            
+            const method = (r.paymentMethod || 'Cash').toLowerCase();
+            if (method === 'cash' || method.includes('nill (cash)')) {
+                physicalCashRevenue += amount;
+            } else {
+                onlineCashRevenue += amount;
+            }
+        });
+
+        let expenses = 0;
+        let physicalCashExpenses = 0;
+        let onlineCashExpenses = 0;
+
+        (allExpenses || []).forEach((e: any) => {
+            const dateStr = e.timestamp || e.date || e.createdAt;
+            if (!dateStr) return;
+            const date = new Date(dateStr);
+            if (!filter(date)) return;
+            
+            const amount = e.amount || 0;
+            expenses += amount;
+            
+            const method = (e.paymentMethod || 'Cash').toLowerCase();
+            if (method === 'cash') {
+                physicalCashExpenses += amount;
+            } else {
+                onlineCashExpenses += amount;
+            }
+        });
+
+        return { 
+            revenue, 
+            expenses, 
+            profit: revenue - expenses,
+            physicalCash: physicalCashRevenue - physicalCashExpenses,
+            onlineCash: onlineCashRevenue - onlineCashExpenses
+        };
     }, [billingRecords, allExpenses, selectedDate, periodMode]);
 
 
@@ -1546,7 +1671,7 @@ const AdminDashboard = () => {
                 </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
                 <Card className="border-none bg-emerald-50/50 shadow-sm rounded-2xl overflow-hidden group hover:scale-[1.02] transition-all border border-emerald-100/30">
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-2">
@@ -1581,6 +1706,40 @@ const AdminDashboard = () => {
                     </CardContent>
                 </Card>
 
+                <Card className="border-none bg-emerald-50/50 shadow-sm rounded-2xl overflow-hidden group hover:scale-[1.02] transition-all border border-emerald-100/30">
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="p-2 bg-emerald-500 text-white rounded-lg"><Coins className="h-4 w-4" /></div>
+                            <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600/60 leading-none">In-Hand Cash</span>
+                        </div>
+                        <div className="space-y-0.5">
+                            <div className="text-2xl font-black tracking-tighter text-slate-900 leading-none">
+                                Rs {financialMetrics.physicalCash.toLocaleString()}
+                            </div>
+                            <p className="text-[9px] font-bold text-emerald-600/80 uppercase tracking-tighter">
+                                Physical Balance
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-none bg-blue-50/50 shadow-sm rounded-2xl overflow-hidden group hover:scale-[1.02] transition-all border border-blue-100/30">
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="p-2 bg-blue-500 text-white rounded-lg"><Activity className="h-4 w-4" /></div>
+                            <span className="text-[9px] font-black uppercase tracking-widest text-blue-600/60 leading-none">Online Ledger</span>
+                        </div>
+                        <div className="space-y-0.5">
+                            <div className="text-2xl font-black tracking-tighter text-slate-900 leading-none">
+                                Rs {financialMetrics.onlineCash.toLocaleString()}
+                            </div>
+                            <p className="text-[9px] font-bold text-blue-600/80 uppercase tracking-tighter">
+                                Digital Balance
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+
                 <Card className="border-none bg-indigo-50/50 shadow-sm rounded-2xl overflow-hidden group hover:scale-[1.02] transition-all border border-indigo-100/50">
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-2">
@@ -1592,7 +1751,7 @@ const AdminDashboard = () => {
                                 Rs {financialMetrics.profit.toLocaleString()}
                             </div>
                             <p className="text-[9px] font-bold text-indigo-600/80 uppercase tracking-tighter">
-                                Final Profit/Loss
+                                Final Position
                             </p>
                         </div>
                     </CardContent>
