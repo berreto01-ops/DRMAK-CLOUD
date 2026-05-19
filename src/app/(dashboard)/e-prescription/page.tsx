@@ -273,9 +273,9 @@ const defaultMedicine = (): Medicine => ({
   id: uuidv4(),
   name: '',
   dosage: 'tablet',
-  frequencyCategory: DEFAULT_FREQUENCY_CATEGORY,
-  frequency: FREQUENCY_CATEGORIES[DEFAULT_FREQUENCY_CATEGORY][0],
-  duration: '7 days',
+  frequencyCategory: '',
+  frequency: '',
+  duration: '',
   instructions: '',
   showOther: false
 });
@@ -471,18 +471,7 @@ export default function EPrescriptionPage() {
   }, [patients, patientSearch]);
 
   const updateMedicine = (id: string, updates: Partial<Medicine>) => {
-    setMedicines(prev => prev.map(m => {
-      if (m.id === id) {
-        const updated = { ...m, ...updates };
-        // When category changes, reset frequency to first option in new category
-        if (updates.frequencyCategory !== undefined) {
-          const opts = FREQUENCY_CATEGORIES[updates.frequencyCategory] ?? [];
-          updated.frequency = opts[0] ?? '';
-        }
-        return updated;
-      }
-      return m;
-    }));
+    setMedicines(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
   };
 
   const handlePrint = () => {
@@ -930,12 +919,10 @@ export default function EPrescriptionPage() {
                                         className="px-3 py-2 hover:bg-muted cursor-pointer flex flex-col border-b last:border-0"
                                         onMouseDown={(e) => {
                                           e.preventDefault();
-                                          const detectedCat = inferFrequencyCategory(p.productName || p.name, p.category);
                                           updateMedicine(med.id, {
                                             name: p.productName || p.name,
                                             pharmacyItemId: p.id,
                                             genericName: p.genericName || '',
-                                            frequencyCategory: detectedCat,
                                             ...(p.unit ? { dosage: `1 ${p.unit}` } : {})
                                           });
                                         }}
@@ -998,42 +985,10 @@ export default function EPrescriptionPage() {
                                   </Badge>
                               </div>
                             )}
-                            {med.pharmacyItemId && med.pharmacyItemId !== 'manual' && (
-                              <div className="mt-2 flex flex-wrap items-center gap-2">
-                                <span className="text-[10px] text-muted-foreground">Detected as:</span>
-                                <Badge variant="outline" className="text-[10px] py-0 bg-blue-50 text-blue-700 border-blue-200">
-                                  {med.frequencyCategory}
-                                </Badge>
-                                <span className="text-[10px] text-muted-foreground">— adjust below if incorrect</span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs flex items-center gap-1.5">
-                              Frequency Category
-                              {med.pharmacyItemId && med.pharmacyItemId !== 'manual' && (
-                                <span className="text-[9px] bg-blue-50 text-blue-600 border border-blue-200 rounded px-1 font-medium leading-4">auto</span>
-                              )}
-                            </Label>
-                            <Select value={med.frequencyCategory} onValueChange={val => updateMedicine(med.id, { frequencyCategory: val })}>
-                              <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                              <SelectContent>
-                                {Object.keys(FREQUENCY_CATEGORIES).map(cat => (
-                                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Frequency</Label>
-                            <Select value={med.frequency} onValueChange={val => updateMedicine(med.id, { frequency: val })}>
-                              <SelectTrigger><SelectValue placeholder="Select frequency" /></SelectTrigger>
-                              <SelectContent>
-                                {(FREQUENCY_CATEGORIES[med.frequencyCategory] ?? []).map(opt => (
-                                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <Input placeholder="e.g., Twice daily after meals" value={med.frequency} onChange={e => updateMedicine(med.id, { frequency: e.target.value })} />
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Duration</Label>

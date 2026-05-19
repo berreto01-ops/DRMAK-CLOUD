@@ -463,7 +463,7 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
           <div style={{
             display: 'flex',
             alignItems: 'flex-end',
-            height: '10mm',
+            height: '12mm',
             fontSize: '11pt',
             fontWeight: 800,
             marginBottom: '4mm',
