@@ -78,6 +78,7 @@ import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, u
 import { collection, doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import type { Supplier, SupplierProduct, SupplierType } from '@/lib/types';
+import { uploadFile } from '@/firebase/storage';
 import { cn } from '@/lib/utils';
 
 const SUPPLIER_CATEGORIES = [
@@ -129,9 +130,11 @@ export default function SupplierPage() {
     const [editingSupplier, setEditingSupplier] = React.useState<Supplier | null>(null);
     const [formData, setFormData] = React.useState(emptyForm());
     const [isSaving, setIsSaving] = React.useState(false);
-    
+
     // Vendor Payments State
     const [txDialogOpen, setTxDialogOpen] = React.useState(false);
+    const [invoiceFile, setInvoiceFile] = React.useState<File | null>(null);
+    const [invoicePreview, setInvoicePreview] = React.useState<string | null>(null);
     const [editingTransaction, setEditingTransaction] = React.useState<VendorTransaction | null>(null);
     const [txFormData, setTxFormData] = React.useState<Omit<VendorTransaction, 'id' | 'createdAt'>>({
         supplierId: '',
@@ -142,6 +145,7 @@ export default function SupplierPage() {
         reference: '',
         notes: '',
         medicines: [],
+        invoiceImageUrl: '',
         addedBy: '',
     });
     const transactionsRef = useMemoFirebase(
@@ -310,54 +314,49 @@ export default function SupplierPage() {
             toast({ variant: 'destructive', title: 'Validation Error', description: 'Select a supplier and enter a valid amount.' });
             return;
         }
-
         setIsSaving(true);
         try {
+            // Upload invoice image first if one was selected
+            let invoiceImageUrl = txFormData.invoiceImageUrl || '';
+            if (invoiceFile) {
+                const path = `vendor-invoices/${txFormData.supplierId}/${Date.now()}-${invoiceFile.name}`;
+                const uploaded = await uploadFile(invoiceFile, path);
+                if (uploaded) invoiceImageUrl = uploaded;
+            }
+            const dataToSave = { ...txFormData, invoiceImageUrl, amount: Number(txFormData.amount) };
+
             if (editingTransaction) {
-                // 1. Revert Old Balance
+                // Revert old balance
                 const supplierRef = doc(firestore, 'suppliers', editingTransaction.supplierId);
                 const supplier = suppliers?.find(s => s.id === editingTransaction.supplierId);
                 if (supplier) {
-                    const oldBalance = (supplier.currentBalance || 0);
                     const oldAdjustment = editingTransaction.type === 'Bill' ? Number(editingTransaction.amount) : -Number(editingTransaction.amount);
                     await updateDocumentNonBlocking(supplierRef, {
-                        currentBalance: oldBalance - oldAdjustment
+                        currentBalance: (supplier.currentBalance || 0) - oldAdjustment
                     });
                 }
-
-                // 2. Update Transaction record
-                await updateDocumentNonBlocking(doc(firestore, 'vendorTransactions', editingTransaction.id), {
-                    ...txFormData,
-                    amount: Number(txFormData.amount),
-                });
-
-                // 3. Apply New Balance (will be handled by fetch/re-render but better do it explicitly if needed, 
-                // but since we updated the supplier doc above, we need to fetch the LATEST balance now)
-                // Actually, let's just use the logic below to apply the new one.
+                await updateDocumentNonBlocking(doc(firestore, 'vendorTransactions', editingTransaction.id), dataToSave);
             } else {
-                // 1. Add Transaction record
                 await addDocumentNonBlocking(transactionsRef, {
-                    ...txFormData,
-                    amount: Number(txFormData.amount),
+                    ...dataToSave,
                     createdAt: new Date().toISOString(),
                 });
             }
 
-            // Apply New Balance (for both edit and create)
+            // Apply new balance
             const targetSupplierRef = doc(firestore, 'suppliers', txFormData.supplierId);
-            // We need the MOST RECENT balance from the doc because we might have just reverted it
-            // For simplicity in this non-blocking environment, we rely on the state being somewhat consistent
-            // or we use the local calculation.
             const supplier = suppliers?.find(s => s.id === txFormData.supplierId);
             if (supplier) {
-                const baseBalance = editingTransaction ? (supplier.currentBalance || 0) - (editingTransaction.type === 'Bill' ? editingTransaction.amount : -editingTransaction.amount) : (supplier.currentBalance || 0);
+                const baseBalance = editingTransaction
+                    ? (supplier.currentBalance || 0) - (editingTransaction.type === 'Bill' ? editingTransaction.amount : -editingTransaction.amount)
+                    : (supplier.currentBalance || 0);
                 const newAdjustment = txFormData.type === 'Bill' ? Number(txFormData.amount) : -Number(txFormData.amount);
-                await updateDocumentNonBlocking(targetSupplierRef, {
-                    currentBalance: baseBalance + newAdjustment
-                });
+                await updateDocumentNonBlocking(targetSupplierRef, { currentBalance: baseBalance + newAdjustment });
             }
 
             toast({ title: editingTransaction ? 'Transaction Updated' : 'Transaction Recorded', description: `PKR ${txFormData.amount.toLocaleString()} ${txFormData.type} processed.` });
+            setInvoiceFile(null);
+            setInvoicePreview(null);
             setTxDialogOpen(false);
             setEditingTransaction(null);
         } catch (error) {
@@ -1216,7 +1215,7 @@ export default function SupplierPage() {
                 </DialogContent>
             </Dialog>
             {/* Vendor Transaction Dialog */}
-            <Dialog open={txDialogOpen} onOpenChange={setTxDialogOpen}>
+            <Dialog open={txDialogOpen} onOpenChange={(open) => { setTxDialogOpen(open); if (!open) { setInvoiceFile(null); setInvoicePreview(null); setEditingTransaction(null); } }}>
                 <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
                     <div className="bg-amber-600 p-8 text-white">
                         <DialogHeader>
@@ -1296,6 +1295,52 @@ export default function SupplierPage() {
                                 value={txFormData.reference}
                                 onChange={e => setTxFormData(prev => ({ ...prev, reference: e.target.value }))}
                             />
+                        </div>
+
+                        {/* Invoice Image Upload */}
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Invoice Image (Optional)</Label>
+                            {invoicePreview ? (
+                                <div className="relative rounded-xl overflow-hidden border border-amber-100 bg-amber-50/30">
+                                    <img src={invoicePreview} alt="Invoice preview" className="w-full max-h-48 object-contain" />
+                                    <button
+                                        type="button"
+                                        onClick={() => { setInvoiceFile(null); setInvoicePreview(null); setTxFormData(prev => ({ ...prev, invoiceImageUrl: '' })); }}
+                                        className="absolute top-2 right-2 bg-white rounded-full p-1 shadow text-red-500 hover:text-red-700"
+                                        title="Remove image"
+                                    >
+                                        <XCircle className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            ) : (
+                                <label className="flex flex-col items-center justify-center h-24 rounded-xl border-2 border-dashed border-amber-200 bg-amber-50/30 cursor-pointer hover:bg-amber-50 transition-colors">
+                                    <Receipt className="h-6 w-6 text-amber-400 mb-1" />
+                                    <span className="text-xs font-bold text-amber-600">Click to upload invoice</span>
+                                    <span className="text-[10px] text-muted-foreground">PNG, JPG, PDF up to 10MB</span>
+                                    <input
+                                        type="file"
+                                        accept="image/*,application/pdf"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+                                            setInvoiceFile(file);
+                                            if (file.type.startsWith('image/')) {
+                                                const reader = new FileReader();
+                                                reader.onload = (ev) => setInvoicePreview(ev.target?.result as string);
+                                                reader.readAsDataURL(file);
+                                            } else {
+                                                setInvoicePreview(null);
+                                            }
+                                        }}
+                                    />
+                                </label>
+                            )}
+                            {invoiceFile && !invoicePreview && (
+                                <p className="text-xs text-amber-700 font-bold flex items-center gap-1 ml-1">
+                                    <Receipt className="h-3 w-3" /> {invoiceFile.name}
+                                </p>
+                            )}
                         </div>
 
                         {/* Medicine Selector */}

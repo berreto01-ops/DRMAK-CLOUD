@@ -510,9 +510,10 @@ export type VendorTransaction = {
   type: 'Bill' | 'Payment';
   amount: number;
   date: string;
-  reference?: string; // Bill Number or Payment Ref
+  reference?: string;
   notes?: string;
-  medicines?: string[]; // List of medicines involved
+  medicines?: string[];
+  invoiceImageUrl?: string;
   addedBy: string;
   createdAt: string;
 };
