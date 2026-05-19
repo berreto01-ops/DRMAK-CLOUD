@@ -50,7 +50,7 @@ const INK  = '#1a1a1a';
 const LIGHT_GOLD = '#fdfaf2';
 
 const RxSymbol = () => (
-  <span style={{ fontSize: '24pt', fontFamily: 'serif', color: GOLD, fontWeight: 700, marginRight: '8px', lineHeight: 1 }}>℞</span>
+  <span style={{ fontSize: '24pt', color: GOLD, fontWeight: 700, marginRight: '8px', lineHeight: 1 }}>℞</span>
 );
 
 function PrintStyles() {
@@ -94,22 +94,23 @@ function PrintStyles() {
 function LetterheadLayout(p: PrescriptionPreviewProps) {
   return (
     <div style={{ padding: '0', backgroundColor: '#f5f5f5', minHeight: '100%' }}>
-      <div id="prescription-print" style={{ 
-        width: '210mm', 
-        height: '296.5mm', 
-        backgroundColor: '#fff', 
-        margin: '0 auto', 
+      <div id="prescription-print" style={{
+        width: '210mm',
+        height: '296.5mm',
+        backgroundColor: '#fff',
+        margin: '0 auto',
         padding: '15mm 20mm',
         boxShadow: '0 20px 50px rgba(0,0,0,0.1)',
         position: 'relative',
         overflow: 'hidden',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        fontFamily: 'Arial, Helvetica, sans-serif'
       }}>
         <PrintStyles />
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '8mm', paddingBottom: '4mm', borderBottom: `2px solid ${GOLD}` }}>
           <div style={{ textAlign: 'left' }}>
-            <div style={{ fontSize: '18pt', fontWeight: 900, color: INK, marginBottom: '1.5mm', fontFamily: 'serif' }}>{p.doctorName}</div>
+            <div style={{ fontSize: '18pt', fontWeight: 900, color: INK, marginBottom: '1.5mm' }}>{p.doctorName}</div>
             <div style={{ fontSize: '10pt', color: '#555', fontWeight: 600, letterSpacing: '0.5px' }}>{p.doctorQualification}</div>
             <div style={{ fontSize: '9pt', color: GOLD, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginTop: '1mm' }}>{p.doctorSpecialization}</div>
           </div>
@@ -178,7 +179,7 @@ function LetterheadLayout(p: PrescriptionPreviewProps) {
             <span style={{ fontSize: '10pt', fontWeight: 900, color: GOLD, textTransform: 'uppercase', letterSpacing: '1px' }}>Treatment Plan</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100%, 1fr))', gap: '4mm' }}>
-            {p.medicines.map((med, i) => (
+            {p.medicines.map((med) => (
               <div key={med.id} style={{ padding: '3mm 4mm', backgroundColor: '#fff', border: '1px solid #eee', borderRadius: '1.5mm' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1mm' }}>
                   <span style={{ fontSize: '11pt', fontWeight: 800, color: INK }}>{med.name}</span>
@@ -251,11 +252,11 @@ function DigitalLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>) {
         <div style={{ position: 'absolute', top: 0, right: 0, width: '120mm', height: '120mm', background: `linear-gradient(135deg, ${GOLD}08 0%, transparent 80%)`, zIndex: 0 }} />
         <div style={{ position: 'absolute', bottom: 0, left: 0, width: '120mm', height: '120mm', background: `radial-gradient(circle at bottom left, ${GOLD}05 0%, transparent 70%)`, zIndex: 0 }} />
 
-        <div style={{ position: 'relative', zIndex: 1, padding: '12mm 22mm 15mm 22mm', display: 'flex', flexDirection: 'column', height: '296.5mm', boxSizing: 'border-box' }}>
+        <div style={{ position: 'relative', zIndex: 1, padding: '12mm 22mm 15mm 22mm', display: 'flex', flexDirection: 'column', height: '296.5mm', boxSizing: 'border-box', fontFamily: 'Arial, Helvetica, sans-serif' }}>
           
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '8mm' }}>
             <img src="/logo.png" alt="Clinic Logo" style={{ height: '22mm', marginBottom: '4mm', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))' }} />
-            <div style={{ fontSize: '24pt', fontWeight: 900, color: INK, letterSpacing: '-0.5px', marginBottom: '1mm', fontFamily: 'serif' }}>{nameToDisplay}</div>
+            <div style={{ fontSize: '24pt', fontWeight: 900, color: INK, letterSpacing: '-0.5px', marginBottom: '1mm' }}>{nameToDisplay}</div>
             <div style={{ fontSize: '11pt', fontWeight: 600, color: GOLD, letterSpacing: '2px', textTransform: 'uppercase' }}>{p.doctorSpecialization}</div>
           </div>
 
@@ -270,7 +271,7 @@ function DigitalLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>) {
             </div>
             <div>
               <div style={{ fontSize: '8pt', color: GOLD, fontWeight: 900, textTransform: 'uppercase', marginBottom: '1.5mm' }}>Prescription ID</div>
-              <div style={{ fontSize: '11pt', fontWeight: 800, color: INK }}>#{Math.random().toString(36).substr(2, 6).toUpperCase()}</div>
+              <div style={{ fontSize: '11pt', fontWeight: 800, color: INK }}>#{Math.random().toString(36).substring(2, 8).toUpperCase()}</div>
             </div>
             <div>
               <div style={{ fontSize: '8pt', color: GOLD, fontWeight: 900, textTransform: 'uppercase', marginBottom: '1.5mm' }}>Date</div>
@@ -308,14 +309,14 @@ function DigitalLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>) {
                 </div>
                 
                 <div style={{ paddingLeft: '6mm' }}>
-                  {p.medicines.map((med, i) => (
+                  {p.medicines.map((med) => (
                     <div key={med.id} style={{ marginBottom: '6mm', position: 'relative' }}>
                       <div style={{ position: 'absolute', left: '-6mm', top: '2mm', width: '2mm', height: '2mm', borderRadius: '50%', border: `1.5px solid ${GOLD}` }}></div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1.5mm' }}>
                         <div style={{ fontSize: '13pt', fontWeight: 800, color: INK }}>{med.name}</div>
                         <div style={{ fontSize: '10pt', fontWeight: 700, color: GOLD, backgroundColor: LIGHT_GOLD, padding: '1mm 3mm', borderRadius: '1mm' }}>{med.frequency}</div>
                       </div>
-                      <div style={{ fontSize: '10pt', color: '#666', fontStyle: 'italic' }}>
+                      <div style={{ fontSize: '10pt', color: '#666' }}>
                         Duration: {med.duration} {med.instructions && `| Note: ${med.instructions}`}
                       </div>
                     </div>
@@ -360,13 +361,12 @@ function DigitalLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>) {
           <div style={{ marginTop: '12mm', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `2px solid ${GOLD}20`, paddingTop: '6mm' }}>
             <div style={{ flex: 1 }}>
               <div style={{ 
-                fontSize: '12pt', 
-                fontWeight: 900, 
-                color: '#eee', 
-                letterSpacing: '5px', 
-                textTransform: 'uppercase', 
-                marginBottom: '2mm',
-                fontStyle: 'italic'
+                fontSize: '12pt',
+                fontWeight: 900,
+                color: '#eee',
+                letterSpacing: '5px',
+                textTransform: 'uppercase',
+                marginBottom: '2mm'
               }}>
                 Not valid for court
               </div>
@@ -457,7 +457,8 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
           flexDirection: 'column',
           minHeight: '245mm',
           background: 'transparent',
-          color: INK
+          color: INK,
+          fontFamily: 'Arial, Helvetica, sans-serif'
         }}>
           {/* Patient Info Row — values sit on the underlines in the template */}
           <div style={{
@@ -516,11 +517,11 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
               {namedMeds.length > 0 && (
                 <div style={{ marginTop: '2mm', marginBottom: '8mm' }}>
                   <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6mm', marginLeft: '2mm' }}>
-                    <span style={{ fontSize: '28pt', fontWeight: 900, color: GOLD, fontFamily: 'serif', marginRight: '4mm', lineHeight: 1 }}>℞</span>
+                    <span style={{ fontSize: '28pt', fontWeight: 900, color: GOLD, marginRight: '4mm', lineHeight: 1 }}>℞</span>
                     <span style={{ fontSize: '18pt', fontWeight: 900, color: GOLD, textTransform: 'uppercase', letterSpacing: '2px' }}>Treatment Plan</span>
                   </div>
                   <div style={{ paddingLeft: '4mm', overflow: 'hidden' }}>
-                    {namedMeds.map((med, i) => (
+                    {namedMeds.map((med) => (
                       <div key={med.id} style={{ marginBottom: '5mm', paddingBottom: '3mm', display: 'flex', gap: '2.5mm', alignItems: 'flex-start' }}>
                         <span style={{ color: GOLD, fontSize: '14pt', lineHeight: 1, marginTop: '1mm', flexShrink: 0 }}>•</span>
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -529,8 +530,8 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '6mm', marginTop: '1.5mm', paddingLeft: '4mm' }}>
                           <div style={{ fontSize: '9.5pt', color: '#666', fontWeight: 600, whiteSpace: 'nowrap' }}>Duration: {med.duration}</div>
                           {med.instructions && (
-                            <div style={{ fontSize: '9.5pt', color: INK, fontStyle: 'italic', fontWeight: 500 }}>
-                              <span style={{ color: GOLD, fontWeight: 800, fontStyle: 'normal' }}>Note: </span>{med.instructions}
+                            <div style={{ fontSize: '9.5pt', color: INK, fontWeight: 500 }}>
+                              <span style={{ color: GOLD, fontWeight: 800 }}>Note: </span>{med.instructions}
                             </div>
                           )}
                         </div>
@@ -583,7 +584,7 @@ function CustomTemplateLayout(p: Omit<PrescriptionPreviewProps, 'hideBranding'>)
           {p.advice && (
             <div>
               <div style={{ fontSize: '11pt', fontWeight: 800, color: GOLD, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2mm' }}>Special Advice:</div>
-              <div style={{ fontSize: '11pt', lineHeight: 1.6, whiteSpace: 'pre-line', color: '#444', fontStyle: 'italic', fontWeight: 400 }}>{p.advice}</div>
+              <div style={{ fontSize: '11pt', lineHeight: 1.6, whiteSpace: 'pre-line', color: '#444', fontWeight: 400 }}>{p.advice}</div>
             </div>
           )}
           {!procedureOverflows && p.procedure && (

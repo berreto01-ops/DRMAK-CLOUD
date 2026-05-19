@@ -1097,9 +1097,9 @@ export default function EPrescriptionPage() {
 
 
                 {/* Internal Notes */}
-                <div className="space-y-2 pt-4 border-t">
+                <div className="space-y-2 pt-4 border-t no-print">
                   <Label className="text-muted-foreground text-xs">Private Notes (Not Printed)</Label>
-                  <Input placeholder="Internal notes..." value={notes} onChange={e => setNotes(e.target.value)} />
+                  <Textarea placeholder="Internal notes..." value={notes} onChange={e => setNotes(e.target.value)} rows={4} className="resize-none" />
                 </div>
                 {/* 10. Follow up */}
                 <div className="space-y-3 pt-4 border-t">
